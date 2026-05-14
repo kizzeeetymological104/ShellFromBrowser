@@ -27,21 +27,44 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	sess, err := terminal.NewSession(80, 24)
-	if err != nil {
-		log.Printf("session create: %v", err)
-		conn.WriteMessage(websocket.TextMessage, []byte("Failed to create session: "+err.Error()))
-		return
+	username := "anonymous"
+	if s.authProv != nil {
+		token := r.URL.Query().Get("token")
+		claims, _ := s.authProv.ValidateToken(token)
+		if claims != nil {
+			username = claims.Username
+		}
 	}
-	defer sess.Close()
+
+	sessionID := r.URL.Query().Get("session")
+	var sess *terminal.Session
+
+	if sessionID != "" {
+		sess, err = s.sessions.Get(sessionID)
+		if err != nil {
+			conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"error","message":"session not found"}`))
+			return
+		}
+	} else {
+		sess, err = s.sessions.Create(username, 80, 24)
+		if err != nil {
+			conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"error","message":"`+err.Error()+`"}`))
+			return
+		}
+	}
+
+	// Send session info
+	info, _ := json.Marshal(map[string]string{"type": "session", "id": sess.ID()})
+	conn.WriteMessage(websocket.TextMessage, info)
 
 	// PTY -> WebSocket
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		buf := make([]byte, 4096)
 		for {
 			n, err := sess.Read(buf)
 			if err != nil {
-				conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1000, "session closed"))
 				return
 			}
 			if err := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
@@ -58,13 +81,15 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if msgType == websocket.TextMessage {
-			var resize resizeMsg
-			if json.Unmarshal(msg, &resize) == nil && resize.Type == "resize" {
-				sess.Resize(resize.Cols, resize.Rows)
+			var wsMsg resizeMsg
+			if json.Unmarshal(msg, &wsMsg) == nil && wsMsg.Type == "resize" {
+				sess.Resize(wsMsg.Cols, wsMsg.Rows)
 				continue
 			}
 		}
 
 		sess.Write(msg)
 	}
+
+	<-done
 }

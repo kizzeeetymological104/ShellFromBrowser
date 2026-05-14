@@ -54,6 +54,18 @@ func (s *Session) Resize(cols, rows uint16) error {
 	return nil
 }
 
+func (s *Session) Cols() uint16 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cols
+}
+
+func (s *Session) Rows() uint16 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.rows
+}
+
 func (s *Session) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

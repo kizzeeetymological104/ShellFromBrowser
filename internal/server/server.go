@@ -8,6 +8,7 @@ import (
 
 	"github.com/valorisa/ShellFromBrowser/internal/auth"
 	"github.com/valorisa/ShellFromBrowser/internal/config"
+	"github.com/valorisa/ShellFromBrowser/internal/terminal"
 	"github.com/valorisa/ShellFromBrowser/web"
 )
 
@@ -16,6 +17,7 @@ type Server struct {
 	mux      *http.ServeMux
 	cfg      *config.Config
 	authProv auth.Provider
+	sessions *terminal.Manager
 }
 
 func New(addr string, cfg *config.Config) *Server {
@@ -25,7 +27,10 @@ func New(addr string, cfg *config.Config) *Server {
 		s.authProv = auth.NewLocalProvider(&cfg.Auth)
 	}
 
+	s.sessions = terminal.NewManager(cfg.Sessions.MaxPerUser)
+
 	s.mux.HandleFunc("/api/login", s.handleLogin)
+	s.mux.HandleFunc("/api/sessions", s.authMiddleware(s.handleSessions))
 	s.mux.HandleFunc("/ws", s.authMiddleware(s.handleWebSocket))
 
 	staticFS, _ := fs.Sub(web.StaticFiles, "static")
@@ -122,4 +127,37 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
+}
+
+func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
+	username := "anonymous"
+	if s.authProv != nil {
+		token := r.URL.Query().Get("token")
+		if token == "" {
+			h := r.Header.Get("Authorization")
+			if len(h) > 7 {
+				token = h[7:]
+			}
+		}
+		claims, err := s.authProv.ValidateToken(token)
+		if err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		username = claims.Username
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		sessions := s.sessions.ListByUser(username)
+		writeJSON(w, http.StatusOK, sessions)
+	case http.MethodDelete:
+		id := r.URL.Query().Get("id")
+		if id != "" {
+			s.sessions.Destroy(id)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }

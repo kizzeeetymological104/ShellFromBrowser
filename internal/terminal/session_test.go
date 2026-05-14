@@ -63,3 +63,62 @@ func TestSessionClose(t *testing.T) {
 		t.Fatal("expected error writing to closed session")
 	}
 }
+
+func TestSessionManager(t *testing.T) {
+	mgr := terminal.NewManager(5)
+
+	s1, err := mgr.Create("user1", 80, 24)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	s2, err := mgr.Create("user1", 80, 24)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// List sessions
+	sessions := mgr.ListByUser("user1")
+	if len(sessions) != 2 {
+		t.Errorf("ListByUser = %d, want 2", len(sessions))
+	}
+
+	// Get by ID
+	got, err := mgr.Get(s1.ID())
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.ID() != s1.ID() {
+		t.Error("Get returned wrong session")
+	}
+
+	// Destroy
+	mgr.Destroy(s2.ID())
+	sessions = mgr.ListByUser("user1")
+	if len(sessions) != 1 {
+		t.Errorf("after destroy: %d, want 1", len(sessions))
+	}
+
+	// Cleanup
+	mgr.DestroyAll()
+}
+
+func TestSessionManagerMaxSessions(t *testing.T) {
+	mgr := terminal.NewManager(2)
+
+	_, err := mgr.Create("user1", 80, 24)
+	if err != nil {
+		t.Fatalf("Create 1: %v", err)
+	}
+	_, err = mgr.Create("user1", 80, 24)
+	if err != nil {
+		t.Fatalf("Create 2: %v", err)
+	}
+	_, err = mgr.Create("user1", 80, 24)
+	if err == nil {
+		t.Fatal("expected max sessions error")
+	}
+
+	// Cleanup
+	mgr.DestroyAll()
+}
