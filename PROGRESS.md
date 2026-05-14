@@ -313,6 +313,18 @@ docker exec redis-sentinel-1 redis-cli -p 26379 SENTINEL FAILOVER mymaster
 
 ## 📚 Documentation Importante
 
+### System Prompt (LIRE EN PREMIER)
+- **shellfrombroswer-prompt-v2-council.md** : `/Users/valorisa/Projets/ShellFromBrowser/shellfrombroswer-prompt-v2-council.md`
+  - **Prompt système production-ready post-Council audit**
+  - Décisions contractuelles non-négociables (volumétrie, budget, timeline)
+  - Threat model 3 attackers explicites (A/B/C) avec mitigations
+  - OWASP Top 10:2021 coverage 10/10
+  - GDPR compliance (endpoints, retention, anonymization)
+  - 11 angles morts résolus (Redis SPOF, JWT revocation, monitoring, etc.)
+  - Anti-patterns à éviter (7 erreurs communes)
+  - Checklist pre-production 40+ items
+  - **👉 LIRE CE FICHIER AVANT TOUTE IMPLÉMENTATION**
+
 ### Architecture
 - **ARCHITECTURE.md** : `/Users/valorisa/Projets/ShellFromBrowser/docs/ARCHITECTURE.md`
   - 15 sections : system overview, 4 composants, data flow, stack technique, infra dev/prod
