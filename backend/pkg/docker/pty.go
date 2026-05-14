@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
@@ -41,7 +41,7 @@ func NewPTYBridge(ws *websocket.Conn, docker *client.Client, containerID, userID
 // Start starts the bidirectional I/O bridge
 func (b *PTYBridge) Start(ctx context.Context) error {
 	// Attach to container
-	attachResp, err := b.docker.ContainerAttach(ctx, b.containerID, types.ContainerAttachOptions{
+	attachResp, err := b.docker.ContainerAttach(ctx, b.containerID, container.AttachOptions{
 		Stream: true,
 		Stdin:  true,
 		Stdout: true,
@@ -158,7 +158,7 @@ func (b *PTYBridge) copyWebSocketToDocker(writer io.WriteCloser) {
 
 // ResizePTY resizes the container PTY (for terminal resize events)
 func (b *PTYBridge) ResizePTY(ctx context.Context, height, width uint) error {
-	return b.docker.ContainerResize(ctx, b.containerID, types.ResizeOptions{
+	return b.docker.ContainerResize(ctx, b.containerID, container.ResizeOptions{
 		Height: height,
 		Width:  width,
 	})

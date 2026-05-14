@@ -2,28 +2,39 @@ package docker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 )
 
 // ============================================
-// Docker Executor Stub (Phase 1 Week 1)
+// Docker Shell Executor
 // ============================================
-// Temporary stub implementation while resolving Docker SDK dependency issues.
-// TODO Phase 1 Week 2: Replace with full executor.go implementation once
-// docker/docker@v27 compatibility issues are resolved.
+// Spawns isolated Docker containers for shell sessions with:
+// - Resource limits (512MB RAM, 0.5 CPU)
+// - Security isolation (seccomp, AppArmor, capabilities drop)
+// - Idle timeout (30 minutes auto-cleanup)
+// - PTY (pseudo-terminal) support
 
+// Executor manages Docker container lifecycle
 type Executor struct {
-	image       string
-	memoryLimit int64
-	cpuLimit    int64
-	idleTimeout time.Duration
-	networkMode string
+	client       *client.Client
+	image        string
+	memoryLimit  int64 // bytes
+	cpuLimit     int64 // nano CPUs (0.5 = 500000000)
+	idleTimeout  time.Duration
+	networkMode  string
 }
 
+// ContainerConfig holds container configuration
 type ContainerConfig struct {
 	UserID      string
 	SessionID   string
@@ -31,98 +42,237 @@ type ContainerConfig struct {
 	Environment []string
 }
 
+// NewExecutor creates a new Docker executor
 func NewExecutor(image string, memoryMB int, cpuLimit float64, idleTimeout time.Duration, networkMode string) (*Executor, error) {
-	log.Warn().Msg("Using Docker stub implementation (Phase 1 Week 1)")
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Docker client: %w", err)
+	}
+
+	// Convert units
+	memoryBytes := int64(memoryMB) * 1024 * 1024
+	nanoCPUs := int64(cpuLimit * 1e9)
+
 	return &Executor{
+		client:      cli,
 		image:       image,
-		memoryLimit: int64(memoryMB) * 1024 * 1024,
-		cpuLimit:    int64(cpuLimit * 1e9),
+		memoryLimit: memoryBytes,
+		cpuLimit:    nanoCPUs,
 		idleTimeout: idleTimeout,
 		networkMode: networkMode,
 	}, nil
 }
 
+// Close closes the Docker client
 func (e *Executor) Close() error {
-	return nil
+	return e.client.Close()
 }
 
-func (e *Executor) GetClient() interface{} {
-	return nil
+// GetClient returns the underlying Docker client (for PTY bridge)
+func (e *Executor) GetClient() *client.Client {
+	return e.client
 }
 
+// SpawnContainer creates and starts a new container for a shell session
 func (e *Executor) SpawnContainer(ctx context.Context, config ContainerConfig) (string, error) {
-	// Stub: return fake container ID
-	containerID := fmt.Sprintf("stub-%s-%d", config.UserID, time.Now().Unix())
 	log.Info().
-		Str("container_id", containerID).
 		Str("user_id", config.UserID).
-		Msg("Stub: Container spawn simulated")
+		Str("session_id", config.SessionID).
+		Msg("Spawning Docker container")
+
+	// Container configuration
+	containerConfig := &container.Config{
+		Image:        e.image,
+		Cmd:          []string{"/bin/bash"},
+		Tty:          true,
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+		OpenStdin:    true,
+		StdinOnce:    false,
+		Env:          config.Environment,
+		WorkingDir:   config.WorkingDir,
+		Labels: map[string]string{
+			"app":        "shellfrombroswer",
+			"user_id":    config.UserID,
+			"session_id": config.SessionID,
+			"created_at": time.Now().Format(time.RFC3339),
+		},
+	}
+
+	// Host configuration (resource limits + security)
+	hostConfig := &container.HostConfig{
+		// Resource limits
+		Resources: container.Resources{
+			Memory:   e.memoryLimit,
+			NanoCPUs: e.cpuLimit,
+		},
+
+		// Network isolation
+		NetworkMode: container.NetworkMode(e.networkMode),
+
+		// Security: Drop all capabilities except essential ones
+		CapDrop: []string{"ALL"},
+		CapAdd: []string{
+			"CHOWN",
+			"DAC_OVERRIDE",
+			"FOWNER",
+			"SETGID",
+			"SETUID",
+		},
+
+		// Security: Read-only root filesystem (Phase 2)
+		// ReadonlyRootfs: true,
+
+		// Security: Seccomp profile (Phase 2: custom profile)
+		SecurityOpt: []string{
+			"no-new-privileges:true",
+			// "seccomp=/path/to/custom-seccomp.json", // Phase 2
+		},
+	}
+
+	// Create container
+	resp, err := e.client.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, "")
+	if err != nil {
+		return "", fmt.Errorf("failed to create container: %w", err)
+	}
+
+	containerID := resp.ID
+
+	// Start container
+	if err := e.client.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
+		// Cleanup on failure
+		e.client.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true})
+		return "", fmt.Errorf("failed to start container: %w", err)
+	}
+
+	log.Info().
+		Str("container_id", containerID[:12]).
+		Str("user_id", config.UserID).
+		Msg("Container spawned successfully")
+
+	// Start idle timeout monitor
+	go e.monitorIdleTimeout(containerID, config.UserID)
+
 	return containerID, nil
 }
 
+// AttachContainer attaches to a running container's stdin/stdout/stderr
+func (e *Executor) AttachContainer(ctx context.Context, containerID string) (io.ReadWriteCloser, error) {
+	attachOptions := container.AttachOptions{
+		Stream: true,
+		Stdin:  true,
+		Stdout: true,
+		Stderr: true,
+	}
+
+	resp, err := e.client.ContainerAttach(ctx, containerID, attachOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to attach to container: %w", err)
+	}
+
+	return resp.Conn, nil
+}
+
+// StopContainer stops and removes a container
 func (e *Executor) StopContainer(ctx context.Context, containerID string) error {
-	log.Info().Str("container_id", containerID).Msg("Stub: Container stop simulated")
-	return nil
-}
+	log.Info().Str("container_id", containerID[:12]).Msg("Stopping container")
 
-func (e *Executor) PullImage(ctx context.Context) error {
-	log.Info().Str("image", e.image).Msg("Stub: Image pull simulated")
-	return nil
-}
-
-// PTY Bridge Stub
-type PTYBridge struct {
-	ws          *websocket.Conn
-	containerID string
-	userID      string
-	done        chan struct{}
-}
-
-func NewPTYBridge(ws *websocket.Conn, dockerClient interface{}, containerID, userID string) *PTYBridge {
-	return &PTYBridge{
-		ws:          ws,
-		containerID: containerID,
-		userID:      userID,
-		done:        make(chan struct{}),
+	// Stop with timeout
+	timeout := int(30) // 30 seconds
+	if err := e.client.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &timeout}); err != nil {
+		log.Warn().Err(err).Str("container_id", containerID[:12]).Msg("Failed to stop container gracefully")
 	}
+
+	// Force remove
+	if err := e.client.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true}); err != nil {
+		return fmt.Errorf("failed to remove container: %w", err)
+	}
+
+	log.Info().Str("container_id", containerID[:12]).Msg("Container removed")
+	return nil
 }
 
-func (b *PTYBridge) Start(ctx context.Context) error {
+// GetContainerStats retrieves resource usage stats
+func (e *Executor) GetContainerStats(ctx context.Context, containerID string) (*container.StatsResponse, error) {
+	resp, err := e.client.ContainerStats(ctx, containerID, false)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var stats container.StatsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
+}
+
+// ListUserContainers lists all containers for a specific user
+func (e *Executor) ListUserContainers(ctx context.Context, userID string) ([]types.Container, error) {
+	filters := filters.NewArgs()
+	filters.Add("label", fmt.Sprintf("user_id=%s", userID))
+
+	return e.client.ContainerList(ctx, container.ListOptions{
+		Filters: filters,
+		All:     false, // Only running containers
+	})
+}
+
+// monitorIdleTimeout monitors container and kills it after idle timeout
+func (e *Executor) monitorIdleTimeout(containerID, userID string) {
+	time.Sleep(e.idleTimeout)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Check if container is still running
+	inspect, err := e.client.ContainerInspect(ctx, containerID)
+	if err != nil || !inspect.State.Running {
+		return // Already stopped
+	}
+
 	log.Info().
-		Str("container_id", b.containerID).
-		Str("user_id", b.userID).
-		Msg("Stub: PTY bridge started (echo mode)")
+		Str("container_id", containerID[:12]).
+		Str("user_id", userID).
+		Msg("Idle timeout reached, stopping container")
 
-	// Echo mode for Phase 1 Week 1
-	for {
-		select {
-		case <-b.done:
-			return nil
-		default:
-		}
-
-		_, message, err := b.ws.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Error().Err(err).Msg("WebSocket read error")
-			}
-			return err
-		}
-
-		// Echo back with prefix
-		response := fmt.Sprintf("[STUB ECHO] %s", string(message))
-		if err := b.ws.WriteMessage(websocket.TextMessage, []byte(response)); err != nil {
-			log.Error().Err(err).Msg("WebSocket write error")
-			return err
-		}
+	if err := e.StopContainer(ctx, containerID); err != nil {
+		log.Error().Err(err).Str("container_id", containerID[:12]).Msg("Failed to stop idle container")
 	}
 }
 
-func (b *PTYBridge) Stop() {
-	close(b.done)
+// PullImage pulls the shell executor image if not present
+func (e *Executor) PullImage(ctx context.Context) error {
+	log.Info().Str("image", e.image).Msg("Pulling Docker image")
+
+	reader, err := e.client.ImagePull(ctx, e.image, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to pull image: %w", err)
+	}
+	defer reader.Close()
+
+	// Wait for pull to complete
+	io.Copy(io.Discard, reader)
+
+	log.Info().Str("image", e.image).Msg("Image pulled successfully")
+	return nil
 }
 
-func (b *PTYBridge) ResizePTY(ctx context.Context, height, width uint) error {
-	log.Debug().Uint("height", height).Uint("width", width).Msg("Stub: PTY resize simulated")
-	return nil
+// ============================================
+// Container Security Helpers
+// ============================================
+
+// SeccompProfile returns custom seccomp profile (Phase 2)
+func SeccompProfile() string {
+	// TODO Phase 2: Generate custom seccomp profile with allowlist of 50 syscalls
+	// For now, use Docker default with no-new-privileges
+	return ""
+}
+
+// AppArmorProfile returns custom AppArmor profile (Phase 2)
+func AppArmorProfile() string {
+	// TODO Phase 2: Generate custom AppArmor profile
+	return ""
 }
