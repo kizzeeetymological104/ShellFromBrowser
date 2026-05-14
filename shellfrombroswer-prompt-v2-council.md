@@ -136,9 +136,9 @@ Terminal web moderne avec :
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    HAProxy Load Balancer                        │
-│  - TLS termination (Let's Encrypt)                             │
-│  - Health checks (backend /health)                             │
-│  - Round-robin 2 instances frontend                            │
+│  - TLS termination (Let's Encrypt)                              │
+│  - Health checks (backend /health)                              │
+│  - Round-robin 2 instances frontend                             │
 └─────────────────────────────────────────────────────────────────┘
                               │
                  ┌────────────┴────────────┐
@@ -155,11 +155,11 @@ Terminal web moderne avec :
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │              WebSocket Gateway (Go)                             │
-│  - JWT auth middleware (HttpOnly cookies)                      │
-│  - Rate limiting (10 req/s per-user)                          │
-│  - Input sanitization (6-step pipeline)                       │
-│  - Prometheus metrics (7 metrics)                             │
-│  - Graceful shutdown                                           │
+│  - JWT auth middleware (HttpOnly cookies)                       │
+│  - Rate limiting (10 req/s per-user)                            │
+│  - Input sanitization (6-step pipeline)                         │
+│  - Prometheus metrics (7 metrics)                               │
+│  - Graceful shutdown                                            │
 └─────────────────────────────────────────────────────────────────┘
                  │                         │
         ┌────────┴────────┐       ┌────────┴────────┐
@@ -176,11 +176,11 @@ Terminal web moderne avec :
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │              Shell Executor (Docker)                            │
-│  - Container spawn (Alpine Linux)                              │
-│  - Resource limits (512MB RAM, 0.5 CPU)                       │
-│  - Security (seccomp, AppArmor, capabilities drop)            │
-│  - Idle timeout (30 min auto-kill)                            │
-│  - PTY bridge (stdin/stdout/stderr)                           │
+│  - Container spawn (Alpine Linux)                               │
+│  - Resource limits (512MB RAM, 0.5 CPU)                         │
+│  - Security (seccomp, AppArmor, capabilities drop)              │
+│  - Idle timeout (30 min auto-kill)                              │
+│  - PTY bridge (stdin/stdout/stderr)                             │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
