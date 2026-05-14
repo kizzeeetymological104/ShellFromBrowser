@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/valorisa/shellfrombroswer/pkg/auth"
+	"github.com/valorisa/shellfrombroswer/pkg/docker"
 	"github.com/valorisa/shellfrombroswer/pkg/redis"
 	"github.com/valorisa/shellfrombroswer/pkg/security"
 )
@@ -57,12 +58,30 @@ func main() {
 	// Initialize rate limiter
 	rateLimiter := security.NewRateLimiter(config.RateLimitPerSecond)
 
+	// Initialize Docker executor
+	dockerExec, err := docker.NewExecutor(
+		config.DockerImage,
+		config.DockerMemoryMB,
+		config.DockerCPULimit,
+		config.DockerIdleTimeout,
+		config.DockerNetworkMode,
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize Docker executor")
+	}
+	defer dockerExec.Close()
+
+	// Pull Docker image if needed
+	if err := dockerExec.PullImage(context.Background()); err != nil {
+		log.Warn().Err(err).Msg("Failed to pull Docker image (will use local)")
+	}
+
 	// HTTP routes
 	mux := http.NewServeMux()
 
 	// WebSocket endpoint (authenticated)
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		handleWebSocket(w, r, jwtManager, redisClient, rateLimiter)
+		handleWebSocket(w, r, jwtManager, redisClient, rateLimiter, dockerExec)
 	})
 
 	// Health check
@@ -111,7 +130,7 @@ func main() {
 }
 
 // handleWebSocket upgrades HTTP to WebSocket and handles terminal session
-func handleWebSocket(w http.ResponseWriter, r *http.Request, jwtManager *auth.JWTManager, redisClient *redis.Client, rateLimiter *security.RateLimiter) {
+func handleWebSocket(w http.ResponseWriter, r *http.Request, jwtManager *auth.JWTManager, redisClient *redis.Client, rateLimiter *security.RateLimiter, dockerExec *docker.Executor) {
 	// 1. Authenticate JWT from cookie
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
@@ -157,34 +176,73 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request, jwtManager *auth.JW
 
 	log.Info().Str("user_id", claims.UserID).Msg("WebSocket connection established")
 
-	// 5. Handle terminal session (to implement in Phase 1 Week 2)
-	handleTerminalSession(conn, claims.UserID, redisClient)
-}
-
-// handleTerminalSession manages terminal I/O via WebSocket
-func handleTerminalSession(conn *websocket.Conn, userID string, redisClient *redis.Client) {
-	// TODO Phase 1 Week 2: Implement Docker container spawn + PTY attach
-	// For now, echo back messages (skeleton)
-
-	for {
-		messageType, p, err := conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Error().Err(err).Str("user_id", userID).Msg("WebSocket read error")
-			}
-			break
-		}
-
-		log.Debug().Str("user_id", userID).Str("message", string(p)).Msg("Received message")
-
-		// Echo back (temporary skeleton)
-		if err := conn.WriteMessage(messageType, p); err != nil {
-			log.Error().Err(err).Str("user_id", userID).Msg("WebSocket write error")
-			break
-		}
+	// 5. Spawn Docker container for shell session
+	sessionID := fmt.Sprintf("%s-%d", claims.UserID, time.Now().Unix())
+	containerConfig := docker.ContainerConfig{
+		UserID:      claims.UserID,
+		SessionID:   sessionID,
+		WorkingDir:  "/workspace",
+		Environment: []string{fmt.Sprintf("USER=%s", claims.Username)},
 	}
 
-	log.Info().Str("user_id", userID).Msg("WebSocket connection closed")
+	containerID, err := dockerExec.SpawnContainer(r.Context(), containerConfig)
+	if err != nil {
+		log.Error().Err(err).Str("user_id", claims.UserID).Msg("Failed to spawn container")
+		conn.WriteMessage(websocket.TextMessage, []byte("Error: Failed to create shell session"))
+		conn.Close()
+		return
+	}
+
+	// Store session metadata in Redis
+	metadata := redis.SessionMetadata{
+		UserID:       claims.UserID,
+		Username:     claims.Username,
+		ContainerID:  containerID,
+		CreatedAt:    time.Now(),
+		LastActivity: time.Now(),
+		DeviceInfo:   r.UserAgent(),
+	}
+	if err := redisClient.StoreSession(r.Context(), sessionID, metadata, 30*time.Minute); err != nil {
+		log.Error().Err(err).Msg("Failed to store session metadata")
+	}
+
+	// 6. Bridge WebSocket <-> Docker PTY
+	handleTerminalSession(conn, containerID, claims.UserID, dockerExec, redisClient, sessionID)
+}
+
+// handleTerminalSession manages terminal I/O via WebSocket <-> Docker PTY bridge
+func handleTerminalSession(conn *websocket.Conn, containerID, userID string, dockerExec *docker.Executor, redisClient *redis.Client, sessionID string) {
+	defer func() {
+		// Cleanup on disconnect
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		log.Info().Str("user_id", userID).Str("container_id", containerID[:12]).Msg("Cleaning up session")
+
+		// Stop container
+		if err := dockerExec.StopContainer(ctx, containerID); err != nil {
+			log.Error().Err(err).Str("container_id", containerID[:12]).Msg("Failed to stop container")
+		}
+
+		// Delete session metadata
+		if err := redisClient.DeleteSession(ctx, sessionID); err != nil {
+			log.Error().Err(err).Str("session_id", sessionID).Msg("Failed to delete session")
+		}
+
+		conn.Close()
+	}()
+
+	// Create PTY bridge
+	bridge := docker.NewPTYBridge(conn, dockerExec.GetClient(), containerID, userID)
+
+	// Start bridge (blocks until done)
+	ctx := context.Background()
+	if err := bridge.Start(ctx); err != nil {
+		log.Error().Err(err).Str("container_id", containerID[:12]).Msg("PTY bridge error")
+		return
+	}
+
+	log.Info().Str("user_id", userID).Str("container_id", containerID[:12]).Msg("Session ended")
 }
 
 // checkOrigin validates CORS origin
@@ -217,6 +275,11 @@ type Config struct {
 	JWTIssuer          string
 	JWTAudience        string
 	RateLimitPerSecond int
+	DockerImage        string
+	DockerMemoryMB     int
+	DockerCPULimit     float64
+	DockerIdleTimeout  time.Duration
+	DockerNetworkMode  string
 }
 
 // loadConfig loads configuration from environment variables
@@ -230,7 +293,12 @@ func loadConfig() *Config {
 		JWTSecret:          getEnv("JWT_SECRET", "CHANGE_ME"),
 		JWTIssuer:          getEnv("JWT_ISSUER", "shellfrombroswer"),
 		JWTAudience:        getEnv("JWT_AUDIENCE", "shellfrombroswer-users"),
-		RateLimitPerSecond: 10, // Fixed for Phase 1
+		RateLimitPerSecond: 10,
+		DockerImage:        getEnv("DOCKER_IMAGE", "ubuntu:22.04"),
+		DockerMemoryMB:     512,
+		DockerCPULimit:     0.5,
+		DockerIdleTimeout:  30 * time.Minute,
+		DockerNetworkMode:  getEnv("DOCKER_NETWORK_MODE", "bridge"),
 	}
 }
 

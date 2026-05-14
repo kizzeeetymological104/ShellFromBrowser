@@ -1,0 +1,165 @@
+package docker
+
+import (
+	"context"
+	"io"
+	"sync"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
+	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog/log"
+)
+
+// ============================================
+// PTY (Pseudo-Terminal) Bridge
+// ============================================
+// Bridges WebSocket <-> Docker container PTY
+// Handles bidirectional I/O with proper cleanup
+
+// PTYBridge manages bidirectional communication between WebSocket and Docker PTY
+type PTYBridge struct {
+	ws          *websocket.Conn
+	docker      *client.Client
+	containerID string
+	userID      string
+	done        chan struct{}
+	once        sync.Once
+}
+
+// NewPTYBridge creates a new PTY bridge
+func NewPTYBridge(ws *websocket.Conn, docker *client.Client, containerID, userID string) *PTYBridge {
+	return &PTYBridge{
+		ws:          ws,
+		docker:      docker,
+		containerID: containerID,
+		userID:      userID,
+		done:        make(chan struct{}),
+	}
+}
+
+// Start starts the bidirectional I/O bridge
+func (b *PTYBridge) Start(ctx context.Context) error {
+	// Attach to container
+	attachResp, err := b.docker.ContainerAttach(ctx, b.containerID, types.ContainerAttachOptions{
+		Stream: true,
+		Stdin:  true,
+		Stdout: true,
+		Stderr: true,
+		Logs:   false,
+	})
+	if err != nil {
+		return err
+	}
+
+	log.Info().
+		Str("container_id", b.containerID[:12]).
+		Str("user_id", b.userID).
+		Msg("PTY bridge started")
+
+	// Start bidirectional copying
+	go b.copyDockerToWebSocket(attachResp.Reader)
+	go b.copyWebSocketToDocker(attachResp.Conn)
+
+	// Wait for done signal
+	<-b.done
+
+	// Cleanup
+	attachResp.Close()
+
+	log.Info().
+		Str("container_id", b.containerID[:12]).
+		Str("user_id", b.userID).
+		Msg("PTY bridge stopped")
+
+	return nil
+}
+
+// Stop signals the bridge to stop
+func (b *PTYBridge) Stop() {
+	b.once.Do(func() {
+		close(b.done)
+	})
+}
+
+// copyDockerToWebSocket copies Docker PTY output to WebSocket
+func (b *PTYBridge) copyDockerToWebSocket(reader io.Reader) {
+	defer b.Stop()
+
+	buf := make([]byte, 8192)
+	for {
+		select {
+		case <-b.done:
+			return
+		default:
+		}
+
+		n, err := reader.Read(buf)
+		if err != nil {
+			if err != io.EOF {
+				log.Error().
+					Err(err).
+					Str("container_id", b.containerID[:12]).
+					Str("user_id", b.userID).
+					Msg("Docker read error")
+			}
+			return
+		}
+
+		if n > 0 {
+			// Send to WebSocket
+			if err := b.ws.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
+				log.Error().
+					Err(err).
+					Str("container_id", b.containerID[:12]).
+					Str("user_id", b.userID).
+					Msg("WebSocket write error")
+				return
+			}
+		}
+	}
+}
+
+// copyWebSocketToDocker copies WebSocket input to Docker PTY stdin
+func (b *PTYBridge) copyWebSocketToDocker(writer io.WriteCloser) {
+	defer b.Stop()
+	defer writer.Close()
+
+	for {
+		select {
+		case <-b.done:
+			return
+		default:
+		}
+
+		_, message, err := b.ws.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Error().
+					Err(err).
+					Str("container_id", b.containerID[:12]).
+					Str("user_id", b.userID).
+					Msg("WebSocket read error")
+			}
+			return
+		}
+
+		// Write to Docker stdin
+		if _, err := writer.Write(message); err != nil {
+			log.Error().
+				Err(err).
+				Str("container_id", b.containerID[:12]).
+				Str("user_id", b.userID).
+				Msg("Docker write error")
+			return
+		}
+	}
+}
+
+// ResizePTY resizes the container PTY (for terminal resize events)
+func (b *PTYBridge) ResizePTY(ctx context.Context, height, width uint) error {
+	return b.docker.ContainerResize(ctx, b.containerID, types.ResizeOptions{
+		Height: height,
+		Width:  width,
+	})
+}
