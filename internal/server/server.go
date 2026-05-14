@@ -8,6 +8,7 @@ import (
 
 	"github.com/valorisa/ShellFromBrowser/internal/auth"
 	"github.com/valorisa/ShellFromBrowser/internal/config"
+	"github.com/valorisa/ShellFromBrowser/internal/recording"
 	"github.com/valorisa/ShellFromBrowser/internal/terminal"
 	"github.com/valorisa/ShellFromBrowser/internal/transfer"
 	"github.com/valorisa/ShellFromBrowser/web"
@@ -33,6 +34,15 @@ func New(addr string, cfg *config.Config) *Server {
 	transferHandler := transfer.NewHandler("./transfers", 50*1024*1024)
 	s.mux.HandleFunc("/api/upload", s.authMiddleware(transferHandler.Upload))
 	s.mux.HandleFunc("/api/download", s.authMiddleware(transferHandler.Download))
+
+	// Recording routes
+	recordingDir := "./recordings"
+	if cfg.Recording.Dir != "" {
+		recordingDir = cfg.Recording.Dir
+	}
+	player := recording.NewPlayer(recordingDir)
+	s.mux.HandleFunc("/api/recordings", s.authMiddleware(player.HandleList))
+	s.mux.HandleFunc("/api/recordings/get", s.authMiddleware(player.HandleGet))
 
 	s.mux.HandleFunc("/api/login", s.handleLogin)
 	s.mux.HandleFunc("/api/sessions", s.authMiddleware(s.handleSessions))
