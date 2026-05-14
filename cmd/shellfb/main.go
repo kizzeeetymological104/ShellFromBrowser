@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/valorisa/ShellFromBrowser/internal/server"
 )
 
 var (
@@ -25,8 +27,16 @@ func main() {
 		os.Exit(0)
 	}
 
-	_ = configPath // used in Phase 4
+	_ = configPath
+
+	srv := server.New(*addr)
 	log.Printf("ShellFromBrowser %s starting on %s", version, *addr)
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Fatalf("server: %v", err)
+		}
+	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
