@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/gorilla/websocket"
+	"github.com/valorisa/ShellFromBrowser/internal/config"
 	"github.com/valorisa/ShellFromBrowser/internal/server"
 )
 
 func TestWebSocketEcho(t *testing.T) {
-	srv := server.New(":0")
+	srv := server.New(":0", config.Default())
 	ts := httptest.NewServer(srv.Handler())
 	defer ts.Close()
 

@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/valorisa/ShellFromBrowser/internal/config"
 	"github.com/valorisa/ShellFromBrowser/internal/server"
 )
 
@@ -17,7 +18,7 @@ var (
 )
 
 func main() {
-	addr := flag.String("addr", ":8080", "listen address (host:port)")
+	addr := flag.String("addr", "", "listen address (overrides config)")
 	configPath := flag.String("config", "", "path to config file")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -27,10 +28,23 @@ func main() {
 		os.Exit(0)
 	}
 
-	_ = configPath
+	var cfg *config.Config
+	var err error
+	if *configPath != "" {
+		cfg, err = config.Load(*configPath)
+		if err != nil {
+			log.Fatalf("config: %v", err)
+		}
+	} else {
+		cfg = config.Default()
+	}
 
-	srv := server.New(*addr)
-	log.Printf("ShellFromBrowser %s starting on %s", version, *addr)
+	if *addr != "" {
+		cfg.Server.Addr = *addr
+	}
+
+	srv := server.New(cfg.Server.Addr, cfg)
+	log.Printf("ShellFromBrowser %s starting on %s", version, cfg.Server.Addr)
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
