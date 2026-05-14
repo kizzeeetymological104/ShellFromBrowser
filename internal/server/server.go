@@ -9,6 +9,7 @@ import (
 	"github.com/valorisa/ShellFromBrowser/internal/auth"
 	"github.com/valorisa/ShellFromBrowser/internal/config"
 	"github.com/valorisa/ShellFromBrowser/internal/terminal"
+	"github.com/valorisa/ShellFromBrowser/internal/transfer"
 	"github.com/valorisa/ShellFromBrowser/web"
 )
 
@@ -28,6 +29,10 @@ func New(addr string, cfg *config.Config) *Server {
 	}
 
 	s.sessions = terminal.NewManager(cfg.Sessions.MaxPerUser)
+
+	transferHandler := transfer.NewHandler("./transfers", 50*1024*1024)
+	s.mux.HandleFunc("/api/upload", s.authMiddleware(transferHandler.Upload))
+	s.mux.HandleFunc("/api/download", s.authMiddleware(transferHandler.Download))
 
 	s.mux.HandleFunc("/api/login", s.handleLogin)
 	s.mux.HandleFunc("/api/sessions", s.authMiddleware(s.handleSessions))
