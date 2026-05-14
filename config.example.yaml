@@ -1,0 +1,33 @@
+# ShellFromBrowser configuration
+server:
+  addr: ":8080"
+  tls:
+    enabled: false
+    cert: ""
+    key: ""
+
+auth:
+  enabled: false
+  jwt_secret: "change-me-to-a-random-string"
+  users:
+    - username: admin
+      # Generate with: shellfb hash-password
+      password_hash: ""
+
+shell:
+  # Leave empty for system default (SHELL on Unix, COMSPEC on Windows)
+  command: ""
+  env:
+    - "TERM=xterm-256color"
+
+sessions:
+  max_per_user: 10
+  idle_timeout: "30m"
+
+ssh:
+  enabled: true
+  known_hosts: "~/.ssh/known_hosts"
+
+recording:
+  enabled: false
+  dir: "./recordings"
