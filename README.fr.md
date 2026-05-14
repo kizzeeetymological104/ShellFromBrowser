@@ -1,0 +1,219 @@
+# ShellFromBrowser
+
+[![CI](https://github.com/valorisa/ShellFromBrowser/actions/workflows/ci.yml/badge.svg)](https://github.com/valorisa/ShellFromBrowser/actions/workflows/ci.yml)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/valorisa/ShellFromBrowser)](https://go.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey)](https://github.com/valorisa/ShellFromBrowser/releases)
+[![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](Dockerfile)
+
+> 🇬🇧 **[Read in English](README.md)**
+
+Un émulateur de terminal web moderne et multiplateforme écrit en Go. Successeur spirituel de [ShellInBox](https://github.com/niceshell/shellinabox) — réécrit intégralement avec WebSocket, xterm.js, client SSH intégré, multi-sessions, transfert de fichiers et enregistrement de sessions.
+
+---
+
+## Fonctionnalités
+
+| Fonctionnalité | Description |
+|----------------|-------------|
+| **Terminal dans le navigateur** | Émulation complète xterm.js — 256 couleurs, Unicode, souris, presse-papiers |
+| **Onglets multi-sessions** | Ouvrir plusieurs sessions terminal dans une seule fenêtre, basculer entre elles |
+| **Client SSH** | Se connecter à des hôtes distants directement depuis le navigateur (`user@host:port`) |
+| **Authentification** | Auth JWT avec hachage bcrypt des mots de passe, configurable par utilisateur |
+| **TLS/HTTPS** | Support TLS intégré — fournir simplement les chemins vers le certificat et la clé |
+| **Transfert de fichiers** | Upload/download via l'interface web avec protection contre le path traversal |
+| **Enregistrement de sessions** | Enregistrer et rejouer les sessions au format asciicast v2 (compatible asciinema) |
+| **Multiplateforme** | Fonctionne nativement sur Linux, macOS et Windows (ConPTY) |
+| **Binaire unique** | Zéro dépendance runtime — frontend et assets embarqués via `go:embed` |
+| **Docker ready** | Dockerfile multi-stage + docker-compose inclus |
+
+---
+
+## Démarrage rapide
+
+### Option 1 : Binaire
+
+```bash
+# Installer depuis les sources
+go install github.com/valorisa/ShellFromBrowser/cmd/shellfb@latest
+
+# Lancer avec les paramètres par défaut (sans auth, port 8080)
+shellfb
+
+# Lancer avec une adresse personnalisée
+shellfb --addr :3000
+
+# Lancer avec un fichier de configuration
+shellfb --config config.yaml
+
+# Afficher la version
+shellfb --version
+```
+
+Puis ouvrir http://localhost:8080 dans votre navigateur.
+
+### Option 2 : Docker
+
+```bash
+# Cloner et démarrer
+git clone https://github.com/valorisa/ShellFromBrowser.git
+cd ShellFromBrowser
+docker compose up -d
+```
+
+Ouvrir http://localhost:8080 — le terminal est prêt.
+
+### Option 3 : Compiler depuis les sources
+
+```bash
+git clone https://github.com/valorisa/ShellFromBrowser.git
+cd ShellFromBrowser
+
+# Compiler
+make build
+
+# Lancer
+./bin/shellfb
+
+# Exécuter les tests
+make test
+```
+
+---
+
+## Configuration
+
+Copier `config.example.yaml` vers `config.yaml` et personnaliser :
+
+```yaml
+server:
+  addr: ":8080"
+  tls:
+    enabled: true
+    cert: "/chemin/vers/cert.pem"
+    key: "/chemin/vers/key.pem"
+
+auth:
+  enabled: true
+  jwt_secret: "generez-une-chaine-aleatoire-ici"
+  users:
+    - username: admin
+      password_hash: "$2a$10$..."
+    - username: developpeur
+      password_hash: "$2a$10$..."
+
+shell:
+  # Laisser vide pour la valeur système (SHELL sur Unix, COMSPEC sur Windows)
+  command: ""
+  env:
+    - "TERM=xterm-256color"
+
+sessions:
+  max_per_user: 10
+  idle_timeout: "30m"
+
+ssh:
+  enabled: true
+  known_hosts: "~/.ssh/known_hosts"
+
+recording:
+  enabled: true
+  dir: "./recordings"
+```
+
+### Générer un hash de mot de passe
+
+```bash
+shellfb hash-password
+# Enter password: ********
+# $2a$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+Copier la sortie dans votre `config.yaml` sous `password_hash`.
+
+### Options CLI
+
+| Flag | Défaut | Description |
+|------|--------|-------------|
+| `--addr` | `:8080` | Adresse d'écoute (remplace le fichier de config) |
+| `--config` | aucun | Chemin vers le fichier de configuration YAML |
+| `--version` | — | Afficher la version et quitter |
+
+Sous-commandes :
+
+| Commande | Description |
+|----------|-------------|
+| `hash-password` | Générer un hash bcrypt pour la configuration |
+
+---
+
+## Utilisation du client SSH
+
+Se connecter à des hôtes distants directement depuis le navigateur via une connexion WebSocket vers `/ws/ssh` :
+
+```
+ws://localhost:8080/ws/ssh?target=user@host.com:22&password=secret&token=JWT_TOKEN
+```
+
+Paramètres :
+- `target` (requis) : Cible SSH au format `user@host:port` (port par défaut : 22)
+- `password` : Authentification par mot de passe
+- `key` : Chemin vers le fichier de clé privée (côté serveur)
+- `token` : Jeton d'authentification JWT
+
+---
+
+## Points d'accès API
+
+| Méthode | Chemin | Auth | Description |
+|---------|--------|------|-------------|
+| POST | `/api/login` | Non | S'authentifier et recevoir un jeton JWT |
+| GET | `/api/sessions` | Oui | Lister les sessions terminal actives |
+| DELETE | `/api/sessions?id=X` | Oui | Détruire une session spécifique |
+| POST | `/api/upload` | Oui | Uploader un fichier (multipart) |
+| GET | `/api/download?file=X` | Oui | Télécharger un fichier |
+| GET | `/api/recordings` | Oui | Lister les sessions enregistrées |
+| GET | `/api/recordings/get?id=X` | Oui | Récupérer les données d'enregistrement (asciicast v2) |
+| WS | `/ws` | Oui | WebSocket terminal (shell local) |
+| WS | `/ws/ssh` | Oui | WebSocket SSH (hôte distant) |
+
+---
+
+## Sécurité
+
+- **Authentification** : Jetons JWT avec expiration configurable (24h par défaut)
+- **Rate limiting** : Endpoint de login limité à 5 tentatives par minute par IP
+- **En-têtes de sécurité** : CSP, X-Frame-Options (DENY), X-Content-Type-Options, Referrer-Policy
+- **Protection path traversal** : Toutes les opérations fichiers validées contre le répertoire de base
+- **Pas d'eval()** : Aucun script inline, aucune exécution de code dynamique côté frontend
+- **TLS** : Support HTTPS intégré — pas de reverse proxy nécessaire
+- **Auth WebSocket** : Toutes les connexions WebSocket exigent un jeton JWT valide quand l'auth est activée
+
+---
+
+## Structure du projet
+
+```
+ShellFromBrowser/
+├── cmd/shellfb/          # Point d'entrée, CLI
+├── internal/
+│   ├── auth/             # Authentification JWT + bcrypt
+│   ├── config/           # Configuration YAML
+│   ├── recording/        # Enregistrement sessions asciicast v2
+│   ├── server/           # Serveur HTTP, WebSocket, middleware
+│   ├── ssh/              # Wrapper client SSH
+│   ├── terminal/         # Gestion sessions PTY (Unix + Windows)
+│   └── transfer/         # Upload/download fichiers
+├── web/
+│   └── static/           # Frontend embarqué (xterm.js, CSS, JS)
+├── config.example.yaml   # Configuration d'exemple
+├── Dockerfile            # Build Docker multi-stage
+├── docker-compose.yml    # Déploiement prêt à l'emploi
+└── Makefile              # Automatisation du build
+```
+
+---
+
+## Licence
+
+[MIT](LICENSE) — Copyright (c) 2026 valorisa
