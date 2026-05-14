@@ -8,12 +8,36 @@
     <link rel="stylesheet" href="/static/css/app.css">
 </head>
 <body>
-    <div id="terminal-container">
-        <div id="terminal"></div>
+    <div id="login-screen" style="display:none;">
+        <div class="login-box">
+            <h1>ShellFromBrowser</h1>
+            <form id="login-form">
+                <input type="text" id="username" placeholder="Username" autocomplete="username">
+                <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+                <button type="submit">Connect</button>
+                <div id="login-error" class="error"></div>
+            </form>
+        </div>
     </div>
+
+    <div id="app" style="display:none;">
+        <div id="tab-bar">
+            <div id="tabs"></div>
+            <button id="new-tab" title="New session">+</button>
+        </div>
+        <div id="terminal-container">
+            <div id="terminal"></div>
+        </div>
+        <div id="status-bar">
+            <span id="session-info"></span>
+            <span id="connection-status">Disconnected</span>
+        </div>
+    </div>
+
     <script src="/static/js/xterm.js"></script>
     <script src="/static/js/xterm-addon-fit.js"></script>
     <script src="/static/js/xterm-addon-web-links.js"></script>
+    <script src="/static/js/sessions.js"></script>
     <script src="/static/js/terminal.js"></script>
 </body>
 </html>
