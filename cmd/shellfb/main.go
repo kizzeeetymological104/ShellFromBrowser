@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/valorisa/ShellFromBrowser/internal/auth"
 	"github.com/valorisa/ShellFromBrowser/internal/config"
 	"github.com/valorisa/ShellFromBrowser/internal/server"
 )
@@ -18,6 +19,19 @@ var (
 )
 
 func main() {
+	// Handle subcommands before flag parsing
+	if len(os.Args) > 1 && os.Args[1] == "hash-password" {
+		fmt.Print("Enter password: ")
+		var password string
+		fmt.Scanln(&password)
+		hash, err := auth.HashPassword(password)
+		if err != nil {
+			log.Fatalf("hash error: %v", err)
+		}
+		fmt.Println(hash)
+		os.Exit(0)
+	}
+
 	addr := flag.String("addr", "", "listen address (overrides config)")
 	configPath := flag.String("config", "", "path to config file")
 	showVersion := flag.Bool("version", false, "print version and exit")
