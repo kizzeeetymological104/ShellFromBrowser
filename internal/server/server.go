@@ -32,6 +32,7 @@ func New(addr string, cfg *config.Config) *Server {
 	s.mux.HandleFunc("/api/login", s.handleLogin)
 	s.mux.HandleFunc("/api/sessions", s.authMiddleware(s.handleSessions))
 	s.mux.HandleFunc("/ws", s.authMiddleware(s.handleWebSocket))
+	s.mux.HandleFunc("/ws/ssh", s.authMiddleware(s.handleSSHWebSocket))
 
 	staticFS, _ := fs.Sub(web.StaticFiles, "static")
 	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))

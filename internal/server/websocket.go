@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/valorisa/ShellFromBrowser/internal/ssh"
 	"github.com/valorisa/ShellFromBrowser/internal/terminal"
 )
 
@@ -92,4 +93,62 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	<-done
+}
+
+func (s *Server) handleSSHWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	target := r.URL.Query().Get("target")
+	password := r.URL.Query().Get("password")
+	keyFile := r.URL.Query().Get("key")
+
+	if target == "" {
+		conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"error","message":"target required"}`))
+		return
+	}
+
+	sshSess, err := ssh.Connect(ssh.ConnectOpts{
+		Target:   target,
+		Password: password,
+		KeyFile:  keyFile,
+		Cols:     80,
+		Rows:     24,
+	})
+	if err != nil {
+		conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"error","message":"`+err.Error()+`"}`))
+		return
+	}
+	defer sshSess.Close()
+
+	// SSH stdout -> WebSocket
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := sshSess.Read(buf)
+			if err != nil {
+				return
+			}
+			conn.WriteMessage(websocket.BinaryMessage, buf[:n])
+		}
+	}()
+
+	// WebSocket -> SSH stdin
+	for {
+		msgType, msg, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+		if msgType == websocket.TextMessage {
+			var wsMsg resizeMsg
+			if json.Unmarshal(msg, &wsMsg) == nil && wsMsg.Type == "resize" {
+				sshSess.Resize(uint32(wsMsg.Cols), uint32(wsMsg.Rows))
+				continue
+			}
+		}
+		sshSess.Write(msg)
+	}
 }
