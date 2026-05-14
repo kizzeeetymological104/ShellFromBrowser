@@ -8,7 +8,7 @@
 
 > 🇫🇷 **[Lire en français](README.fr.md)**
 
-A modern, cross-platform web-based terminal emulator written in Go. Spiritual successor to [ShellInBox](https://github.com/niceshell/shellinabox) — rebuilt from scratch with WebSocket, xterm.js, SSH client support, multi-sessions, file transfer, and session recording.
+A modern, cross-platform web-based terminal emulator written in Go. Spiritual successor to [ShellInBox](https://code.google.com/archive/p/shellinabox/) — rebuilt from scratch with WebSocket, xterm.js, SSH client support, multi-sessions, file transfer, and session recording.
 
 ---
 

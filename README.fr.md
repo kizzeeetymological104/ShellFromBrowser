@@ -6,9 +6,9 @@
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey)](https://github.com/valorisa/ShellFromBrowser/releases)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](Dockerfile)
 
-> 🇬🇧 **[Read in English](README.md)**
+> 🇺🇸 **[Read in English](README.md)**
 
-Un émulateur de terminal web moderne et multiplateforme écrit en Go. Successeur spirituel de [ShellInBox](https://github.com/niceshell/shellinabox) — réécrit intégralement avec WebSocket, xterm.js, client SSH intégré, multi-sessions, transfert de fichiers et enregistrement de sessions.
+Un émulateur de terminal web moderne et multiplateforme écrit en Go. Successeur spirituel de [ShellInBox](https://code.google.com/archive/p/shellinabox/) — réécrit intégralement avec WebSocket, xterm.js, client SSH intégré, multi-sessions, transfert de fichiers et enregistrement de sessions.
 
 ---
 
