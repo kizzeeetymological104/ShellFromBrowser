@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/valorisa/ShellFromBrowser/internal/auth"
 	"github.com/valorisa/ShellFromBrowser/internal/config"
@@ -44,7 +45,8 @@ func New(addr string, cfg *config.Config) *Server {
 	s.mux.HandleFunc("/api/recordings", s.authMiddleware(player.HandleList))
 	s.mux.HandleFunc("/api/recordings/get", s.authMiddleware(player.HandleGet))
 
-	s.mux.HandleFunc("/api/login", s.handleLogin)
+	loginLimiter := newRateLimiter(5, time.Minute)
+	s.mux.HandleFunc("/api/login", loginLimiter.Middleware(s.handleLogin))
 	s.mux.HandleFunc("/api/sessions", s.authMiddleware(s.handleSessions))
 	s.mux.HandleFunc("/ws", s.authMiddleware(s.handleWebSocket))
 	s.mux.HandleFunc("/ws/ssh", s.authMiddleware(s.handleSSHWebSocket))
@@ -65,7 +67,7 @@ func New(addr string, cfg *config.Config) *Server {
 }
 
 func (s *Server) Handler() http.Handler {
-	return s.mux
+	return securityHeaders(s.mux)
 }
 
 func (s *Server) ListenAndServe() error {
