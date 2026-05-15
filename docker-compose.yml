@@ -1,16 +1,21 @@
 services:
   shellfb:
     build: .
-    image: shellfb:latest
+    image: valorisa/shellfb:latest
     container_name: shellfb
     ports:
-      - "8080:8080"
+      - "80:80"
+      - "443:443"
+    environment:
+      - SHELLFB_DOMAIN=shell.example.com
+      - SHELLFB_AUTH_ENABLED=true
+      - SHELLFB_JWT_SECRET=change-me-to-a-random-string
     volumes:
+      - certs:/var/lib/shellfb/certs
       - ./config.yaml:/etc/shellfb/config.yaml:ro
       - shellfb-recordings:/home/shellfb/recordings
-    environment:
-      - SHELLFB_ADDR=:8080
     restart: unless-stopped
 
 volumes:
+  certs:
   shellfb-recordings:
