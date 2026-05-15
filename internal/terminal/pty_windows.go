@@ -3,35 +3,30 @@
 package terminal
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"io"
 	"os"
-	"os/exec"
+
+	"github.com/UserExistsError/conpty"
 )
 
-type winCloser struct {
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout io.ReadCloser
+type conptyResizer struct {
+	cpty *conpty.ConPty
 }
 
-func (w *winCloser) Close() error {
-	// Close stdin first to signal EOF to the process
-	if w.stdin != nil {
-		w.stdin.Close()
-	}
+func (r *conptyResizer) Resize(cols, rows uint16) error {
+	return r.cpty.Resize(int(cols), int(rows))
+}
 
-	// Kill the process
-	if w.cmd.Process != nil {
-		w.cmd.Process.Kill()
-	}
+type conptyCloser struct {
+	cpty *conpty.ConPty
+}
 
-	// Wait for process to exit
-	w.cmd.Wait()
-
-	// stdout pipe will be closed automatically when process exits
-	// Don't try to close it manually to avoid "file already closed" error
+func (c *conptyCloser) Close() error {
+	c.cpty.Close()
+	c.cpty.Wait(context.Background())
 	return nil
 }
 
@@ -41,37 +36,35 @@ func NewSession(cols, rows uint16) (*Session, error) {
 		shell = "cmd.exe"
 	}
 
-	cmd := exec.Command(shell)
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
-
-	stdin, err := cmd.StdinPipe()
+	cpty, err := conpty.Start(shell, conpty.ConPtyDimensions(int(cols), int(rows)))
 	if err != nil {
-		return nil, err
-	}
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		stdin.Close()
-		return nil, err
-	}
-
-	cmd.Stderr = cmd.Stdout
-
-	if err := cmd.Start(); err != nil {
-		stdin.Close()
-		stdout.Close()
 		return nil, err
 	}
 
 	id := make([]byte, 16)
 	rand.Read(id)
 
+	reader := &conptyReader{cpty: cpty}
+
 	return &Session{
-		id:     hex.EncodeToString(id),
-		reader: stdout,
-		writer: stdin,
-		closer: &winCloser{cmd: cmd, stdin: stdin, stdout: stdout},
-		cols:   cols,
-		rows:   rows,
+		id:      hex.EncodeToString(id),
+		reader:  reader,
+		writer:  cpty,
+		closer:  &conptyCloser{cpty: cpty},
+		cols:    cols,
+		rows:    rows,
+		resizer: &conptyResizer{cpty: cpty},
 	}, nil
+}
+
+type conptyReader struct {
+	cpty *conpty.ConPty
+}
+
+func (r *conptyReader) Read(p []byte) (int, error) {
+	n, err := r.cpty.Read(p)
+	if err != nil {
+		return 0, io.EOF
+	}
+	return n, nil
 }
