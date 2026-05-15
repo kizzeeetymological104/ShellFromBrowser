@@ -1,11 +1,17 @@
 package server
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"io/fs"
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/acme/autocert"
 
 	"github.com/valorisa/ShellFromBrowser/internal/auth"
 	"github.com/valorisa/ShellFromBrowser/internal/config"
@@ -70,11 +76,25 @@ func (s *Server) Handler() http.Handler {
 	return securityHeaders(s.mux)
 }
 
-func (s *Server) ListenAndServe() error {
-	if s.cfg.Server.TLS.Enabled {
-		return http.ListenAndServeTLS(s.addr, s.cfg.Server.TLS.Cert, s.cfg.Server.TLS.Key, s.mux)
+func (s *Server) ListenMode() string {
+	if s.cfg.Server.Domain != "" {
+		return "autocert"
 	}
-	return http.ListenAndServe(s.addr, s.mux)
+	if s.cfg.Server.TLS.Cert != "" && s.cfg.Server.TLS.Key != "" {
+		return "manual-tls"
+	}
+	return "http"
+}
+
+func (s *Server) ListenAndServe() error {
+	switch s.ListenMode() {
+	case "autocert":
+		return s.listenAutoTLS()
+	case "manual-tls":
+		return http.ListenAndServeTLS(s.addr, s.cfg.Server.TLS.Cert, s.cfg.Server.TLS.Key, securityHeaders(s.mux))
+	default:
+		return http.ListenAndServe(s.addr, securityHeaders(s.mux))
+	}
 }
 
 type loginRequest struct {
@@ -178,4 +198,50 @@ func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (s *Server) listenAutoTLS() error {
+	cacheDir := s.cfg.Server.AutocertDir
+	if cacheDir == "" {
+		home, _ := os.UserHomeDir()
+		cacheDir = filepath.Join(home, ".shellfb", "certs")
+	}
+	os.MkdirAll(cacheDir, 0700)
+
+	m := &autocert.Manager{
+		Cache:      autocert.DirCache(cacheDir),
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(s.cfg.Server.Domain),
+	}
+
+	// HTTP server on :80 for ACME challenge + redirect
+	httpSrv := &http.Server{
+		Addr:    ":80",
+		Handler: m.HTTPHandler(http.HandlerFunc(redirectHTTPS)),
+	}
+	go func() {
+		log.Printf("Listening on :80 (HTTP redirect + ACME challenge)")
+		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("HTTP redirect server error: %v", err)
+		}
+	}()
+
+	// HTTPS server on :443 with autocert
+	tlsSrv := &http.Server{
+		Addr:    ":443",
+		Handler: securityHeaders(s.mux),
+		TLSConfig: &tls.Config{
+			GetCertificate: m.GetCertificate,
+			MinVersion:     tls.VersionTLS12,
+		},
+	}
+
+	log.Printf("Auto-TLS: obtaining certificate for %s...", s.cfg.Server.Domain)
+	log.Printf("Listening on :443 (HTTPS)")
+	return tlsSrv.ListenAndServeTLS("", "")
+}
+
+func redirectHTTPS(w http.ResponseWriter, r *http.Request) {
+	target := "https://" + r.Host + r.URL.RequestURI()
+	http.Redirect(w, r, target, http.StatusMovedPermanently)
 }

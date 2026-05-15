@@ -32,3 +32,34 @@ func TestWebSocketEcho(t *testing.T) {
 	// Just verify we can connect and get output
 	t.Log("WebSocket PTY connection established successfully")
 }
+
+func TestListenModeAutoTLS(t *testing.T) {
+	cfg := config.Default()
+	cfg.Server.Domain = "example.com"
+	cfg.Server.AutocertDir = t.TempDir()
+	srv := server.New(":443", cfg)
+	mode := srv.ListenMode()
+	if mode != "autocert" {
+		t.Errorf("ListenMode() = %q, want autocert", mode)
+	}
+}
+
+func TestListenModeManualTLS(t *testing.T) {
+	cfg := config.Default()
+	cfg.Server.TLS.Cert = "/tmp/cert.pem"
+	cfg.Server.TLS.Key = "/tmp/key.pem"
+	srv := server.New(":443", cfg)
+	mode := srv.ListenMode()
+	if mode != "manual-tls" {
+		t.Errorf("ListenMode() = %q, want manual-tls", mode)
+	}
+}
+
+func TestListenModeHTTP(t *testing.T) {
+	cfg := config.Default()
+	srv := server.New(":8080", cfg)
+	mode := srv.ListenMode()
+	if mode != "http" {
+		t.Errorf("ListenMode() = %q, want http", mode)
+	}
+}
