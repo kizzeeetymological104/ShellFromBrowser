@@ -8,6 +8,8 @@
 
 > 🇺🇸 **[Read in English](README.md)**
 
+**Un terminal web traversant.** ShellFromBrowser fonctionne partout où un navigateur peut ouvrir un site web — aéroports, gares, réseaux d'entreprise, partout. Il utilise du HTTPS standard sur le port 443 : aucun firewall ne le distingue d'une visite web ordinaire.
+
 Un émulateur de terminal web moderne et multiplateforme écrit en Go. Successeur spirituel de [ShellInBox](https://code.google.com/archive/p/shellinabox/) — réécrit intégralement avec WebSocket, xterm.js, client SSH intégré, multi-sessions, transfert de fichiers et enregistrement de sessions.
 
 ---

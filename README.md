@@ -8,7 +8,9 @@
 
 > 🇫🇷 **[Lire en français](README.fr.md)**
 
-A modern, cross-platform web-based terminal emulator written in Go. Spiritual successor to [ShellInBox](https://code.google.com/archive/p/shellinabox/) — rebuilt from scratch with WebSocket, xterm.js, SSH client support, multi-sessions, file transfer, and session recording.
+**A network-traversing, web-based terminal emulator.** ShellFromBrowser works everywhere a browser can open a website — airports, train stations, corporate networks, anywhere. It uses standard HTTPS on port 443: no firewall can tell it apart from a regular web visit.
+
+A modern, cross-platform terminal emulator written in Go. Spiritual successor to [ShellInBox](https://code.google.com/archive/p/shellinabox/) — rebuilt from scratch with WebSocket, xterm.js, SSH client support, multi-sessions, file transfer, and session recording.
 
 ---
 
