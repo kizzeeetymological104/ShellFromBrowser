@@ -17,15 +17,20 @@ RUN apk add --no-cache \
     bash \
     openssh-client \
     ca-certificates \
-    && adduser -D -h /home/shellfb shellfb
+    libcap \
+    && adduser -D -h /home/shellfb shellfb \
+    && mkdir -p /var/lib/shellfb/certs \
+    && chown shellfb:shellfb /var/lib/shellfb/certs
 
 COPY --from=builder /bin/shellfb /usr/local/bin/shellfb
+RUN setcap 'cap_net_bind_service=+ep' /usr/local/bin/shellfb
+
 COPY config.example.yaml /etc/shellfb/config.yaml
 
 USER shellfb
 WORKDIR /home/shellfb
 
-EXPOSE 8080
+EXPOSE 80 443
 
 ENTRYPOINT ["shellfb"]
 CMD ["--config", "/etc/shellfb/config.yaml"]
