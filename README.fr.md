@@ -81,6 +81,22 @@ make test
 
 ---
 
+## Réseau contraint (aéroport, gare, entreprise)
+
+ShellFromBrowser fonctionne partout où un navigateur peut ouvrir un site web.
+Il utilise du HTTPS standard (port 443) et du WebSocket — aucun firewall ne
+le distingue d'une visite sur un site web ordinaire.
+
+Configuration minimale pour être accessible depuis n'importe quel réseau :
+
+```bash
+shellfb --domain shell.monserveur.com
+```
+
+Voir le [guide complet de déploiement en réseau contraint](docs/deploiement-reseaux-contraints.md).
+
+---
+
 ## Configuration
 
 Copier `config.example.yaml` vers `config.yaml` et personnaliser :
