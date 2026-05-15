@@ -70,3 +70,264 @@ func TestLoadConfigDefaults(t *testing.T) {
 		t.Error("auth should be disabled by default")
 	}
 }
+
+func TestApplyEnv(t *testing.T) {
+	tests := []struct {
+		name     string
+		env      map[string]string
+		initial  *config.Config
+		expected *config.Config
+	}{
+		{
+			name: "SHELLFB_ADDR overrides addr",
+			env: map[string]string{
+				"SHELLFB_ADDR": ":3000",
+			},
+			initial: config.Default(),
+			expected: &config.Config{
+				Server: config.ServerConfig{Addr: ":3000"},
+			},
+		},
+		{
+			name: "SHELLFB_DOMAIN sets domain",
+			env: map[string]string{
+				"SHELLFB_DOMAIN": "example.com",
+			},
+			initial: config.Default(),
+			expected: &config.Config{
+				Server: config.ServerConfig{
+					Addr:   ":8080",
+					Domain: "example.com",
+				},
+			},
+		},
+		{
+			name: "SHELLFB_AUTOCERT_DIR sets autocert dir",
+			env: map[string]string{
+				"SHELLFB_AUTOCERT_DIR": "/var/cache/autocert",
+			},
+			initial: config.Default(),
+			expected: &config.Config{
+				Server: config.ServerConfig{
+					Addr:        ":8080",
+					AutocertDir: "/var/cache/autocert",
+				},
+			},
+		},
+		{
+			name: "SHELLFB_TLS_CERT and SHELLFB_TLS_KEY set TLS",
+			env: map[string]string{
+				"SHELLFB_TLS_CERT": "/etc/ssl/cert.pem",
+				"SHELLFB_TLS_KEY":  "/etc/ssl/key.pem",
+			},
+			initial: config.Default(),
+			expected: &config.Config{
+				Server: config.ServerConfig{
+					Addr: ":8080",
+					TLS: config.TLSConfig{
+						Cert: "/etc/ssl/cert.pem",
+						Key:  "/etc/ssl/key.pem",
+					},
+				},
+			},
+		},
+		{
+			name: "SHELLFB_AUTH_ENABLED sets auth enabled",
+			env: map[string]string{
+				"SHELLFB_AUTH_ENABLED": "true",
+			},
+			initial: config.Default(),
+			expected: &config.Config{
+				Server: config.ServerConfig{Addr: ":8080"},
+				Auth:   config.AuthConfig{Enabled: true},
+			},
+		},
+		{
+			name: "SHELLFB_JWT_SECRET sets JWT secret",
+			env: map[string]string{
+				"SHELLFB_JWT_SECRET": "my-secret-key",
+			},
+			initial: config.Default(),
+			expected: &config.Config{
+				Server: config.ServerConfig{Addr: ":8080"},
+				Auth:   config.AuthConfig{JWTSecret: "my-secret-key"},
+			},
+		},
+		{
+			name: "multiple env vars override",
+			env: map[string]string{
+				"SHELLFB_ADDR":         ":9000",
+				"SHELLFB_DOMAIN":       "app.example.com",
+				"SHELLFB_AUTOCERT_DIR": "/tmp/certs",
+				"SHELLFB_AUTH_ENABLED": "true",
+				"SHELLFB_JWT_SECRET":   "supersecret",
+			},
+			initial: config.Default(),
+			expected: &config.Config{
+				Server: config.ServerConfig{
+					Addr:        ":9000",
+					Domain:      "app.example.com",
+					AutocertDir: "/tmp/certs",
+				},
+				Auth: config.AuthConfig{
+					Enabled:   true,
+					JWTSecret: "supersecret",
+				},
+			},
+		},
+		{
+			name: "SHELLFB_AUTH_ENABLED=false disables auth",
+			env: map[string]string{
+				"SHELLFB_AUTH_ENABLED": "false",
+			},
+			initial: &config.Config{
+				Server: config.ServerConfig{Addr: ":8080"},
+				Auth:   config.AuthConfig{Enabled: true},
+			},
+			expected: &config.Config{
+				Server: config.ServerConfig{Addr: ":8080"},
+				Auth:   config.AuthConfig{Enabled: false},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set env vars
+			for k, v := range tt.env {
+				os.Setenv(k, v)
+				defer os.Unsetenv(k)
+			}
+
+			cfg := tt.initial
+			cfg.ApplyEnv()
+
+			// Check Server fields
+			if cfg.Server.Addr != tt.expected.Server.Addr {
+				t.Errorf("Server.Addr = %q, want %q", cfg.Server.Addr, tt.expected.Server.Addr)
+			}
+			if cfg.Server.Domain != tt.expected.Server.Domain {
+				t.Errorf("Server.Domain = %q, want %q", cfg.Server.Domain, tt.expected.Server.Domain)
+			}
+			if cfg.Server.AutocertDir != tt.expected.Server.AutocertDir {
+				t.Errorf("Server.AutocertDir = %q, want %q", cfg.Server.AutocertDir, tt.expected.Server.AutocertDir)
+			}
+			if cfg.Server.TLS.Cert != tt.expected.Server.TLS.Cert {
+				t.Errorf("Server.TLS.Cert = %q, want %q", cfg.Server.TLS.Cert, tt.expected.Server.TLS.Cert)
+			}
+			if cfg.Server.TLS.Key != tt.expected.Server.TLS.Key {
+				t.Errorf("Server.TLS.Key = %q, want %q", cfg.Server.TLS.Key, tt.expected.Server.TLS.Key)
+			}
+
+			// Check Auth fields
+			if cfg.Auth.Enabled != tt.expected.Auth.Enabled {
+				t.Errorf("Auth.Enabled = %v, want %v", cfg.Auth.Enabled, tt.expected.Auth.Enabled)
+			}
+			if cfg.Auth.JWTSecret != tt.expected.Auth.JWTSecret {
+				t.Errorf("Auth.JWTSecret = %q, want %q", cfg.Auth.JWTSecret, tt.expected.Auth.JWTSecret)
+			}
+		})
+	}
+}
+
+func TestValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     *config.Config
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid: domain without TLS cert/key",
+			cfg: &config.Config{
+				Server: config.ServerConfig{
+					Addr:   ":443",
+					Domain: "example.com",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid: TLS cert/key without domain",
+			cfg: &config.Config{
+				Server: config.ServerConfig{
+					Addr: ":443",
+					TLS: config.TLSConfig{
+						Cert: "/etc/ssl/cert.pem",
+						Key:  "/etc/ssl/key.pem",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid: neither domain nor TLS",
+			cfg: &config.Config{
+				Server: config.ServerConfig{
+					Addr: ":8080",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid: domain + TLS cert",
+			cfg: &config.Config{
+				Server: config.ServerConfig{
+					Addr:   ":443",
+					Domain: "example.com",
+					TLS: config.TLSConfig{
+						Cert: "/etc/ssl/cert.pem",
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "config conflict: 'domain' (auto-TLS) and 'tls.cert'/'tls.key' (manual TLS) cannot both be set",
+		},
+		{
+			name: "invalid: domain + TLS key",
+			cfg: &config.Config{
+				Server: config.ServerConfig{
+					Addr:   ":443",
+					Domain: "example.com",
+					TLS: config.TLSConfig{
+						Key: "/etc/ssl/key.pem",
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "config conflict: 'domain' (auto-TLS) and 'tls.cert'/'tls.key' (manual TLS) cannot both be set",
+		},
+		{
+			name: "invalid: domain + TLS cert + TLS key",
+			cfg: &config.Config{
+				Server: config.ServerConfig{
+					Addr:   ":443",
+					Domain: "example.com",
+					TLS: config.TLSConfig{
+						Cert: "/etc/ssl/cert.pem",
+						Key:  "/etc/ssl/key.pem",
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "config conflict: 'domain' (auto-TLS) and 'tls.cert'/'tls.key' (manual TLS) cannot both be set",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.cfg.Validate()
+			if tt.wantErr {
+				if err == nil {
+					t.Error("Validate() expected error but got nil")
+				} else if err.Error() != tt.errMsg {
+					t.Errorf("Validate() error = %q, want %q", err.Error(), tt.errMsg)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Validate() unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
