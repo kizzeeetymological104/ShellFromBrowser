@@ -54,16 +54,24 @@ shellfb --version
 
 Then open http://localhost:8080 in your browser.
 
-### Option 2: Docker
+### Option 2: Docker (deployment)
+
+The default `docker-compose.yml` exposes ports 80/443 with auto-TLS — designed for deployment on restricted networks (airports, train stations, corporate firewalls) where only standard HTTPS traffic passes through.
 
 ```bash
-# Clone and start
 git clone https://github.com/valorisa/ShellFromBrowser.git
 cd ShellFromBrowser
+
+# Create your configuration
+cp config.example.yaml config.yaml
+# Edit config.yaml: set your domain, auth, etc.
+
 docker compose up -d
 ```
 
-Open http://localhost:8080 — the terminal is ready.
+Open `https://your-domain.com` — the terminal is ready.
+
+> **Local testing?** Use Option 1 (binary) with `shellfb --addr :3000` instead — no TLS or domain required.
 
 ### Option 3: Build from source
 
