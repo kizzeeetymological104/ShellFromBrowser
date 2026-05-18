@@ -30,7 +30,7 @@ COPY config.example.yaml /etc/shellfb/config.yaml
 USER shellfb
 WORKDIR /home/shellfb
 
-EXPOSE 80 443
+EXPOSE 4200 80 443
 
 ENTRYPOINT ["shellfb"]
 CMD ["--config", "/etc/shellfb/config.yaml"]
