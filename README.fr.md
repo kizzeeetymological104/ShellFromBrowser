@@ -74,7 +74,7 @@ shellfb --config config.yaml
 shellfb --version
 ```
 
-Puis ouvrir http://localhost:4200 (ou votre port personnalisé) dans votre navigateur.
+Puis ouvrir http://localhost:4200 (ou votre port personnalisé) dans votre navigateur. Arrêter avec `Ctrl+C`.
 
 ### Option 3 : Docker (déploiement)
 
@@ -91,14 +91,14 @@ cp config.example.yaml config.yaml
 docker compose up -d
 ```
 
-Ouvrir `https://votre-domaine.com` — le terminal est prêt.
+Ouvrir `https://votre-domaine.com` — le terminal est prêt. Pour arrêter : `docker compose down`.
 
 > **Test local avec Docker ?** On peut lancer sans TLS :
 > ```bash
 > docker build -t shellfb .
-> docker run --rm -p 4200:4200 shellfb
+> docker run --rm --name shellfb-test -p 4200:4200 shellfb
 > ```
-> Puis ouvrir http://localhost:4200.
+> Puis ouvrir http://localhost:4200. Arrêter avec `Ctrl+C`, ou depuis un autre terminal : `docker stop shellfb-test`.
 
 ### Option 4 : Compiler depuis les sources (Makefile)
 
@@ -118,7 +118,7 @@ make build
 make test
 ```
 
-Puis ouvrir http://localhost:4200 dans votre navigateur.
+Puis ouvrir http://localhost:4200 dans votre navigateur. Arrêter avec `Ctrl+C`.
 
 ---
 
