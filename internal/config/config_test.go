@@ -63,8 +63,8 @@ recording:
 
 func TestLoadConfigDefaults(t *testing.T) {
 	cfg := config.Default()
-	if cfg.Server.Addr != ":8080" {
-		t.Errorf("default addr = %q, want :8080", cfg.Server.Addr)
+	if cfg.Server.Addr != ":4200" {
+		t.Errorf("default addr = %q, want :4200", cfg.Server.Addr)
 	}
 	if cfg.Auth.Enabled {
 		t.Error("auth should be disabled by default")
@@ -96,7 +96,7 @@ func TestApplyEnv(t *testing.T) {
 			initial: config.Default(),
 			expected: &config.Config{
 				Server: config.ServerConfig{
-					Addr:   ":8080",
+					Addr:   ":4200",
 					Domain: "example.com",
 				},
 			},
@@ -109,7 +109,7 @@ func TestApplyEnv(t *testing.T) {
 			initial: config.Default(),
 			expected: &config.Config{
 				Server: config.ServerConfig{
-					Addr:        ":8080",
+					Addr:        ":4200",
 					AutocertDir: "/var/cache/autocert",
 				},
 			},
@@ -123,7 +123,7 @@ func TestApplyEnv(t *testing.T) {
 			initial: config.Default(),
 			expected: &config.Config{
 				Server: config.ServerConfig{
-					Addr: ":8080",
+					Addr: ":4200",
 					TLS: config.TLSConfig{
 						Cert: "/etc/ssl/cert.pem",
 						Key:  "/etc/ssl/key.pem",
@@ -138,7 +138,7 @@ func TestApplyEnv(t *testing.T) {
 			},
 			initial: config.Default(),
 			expected: &config.Config{
-				Server: config.ServerConfig{Addr: ":8080"},
+				Server: config.ServerConfig{Addr: ":4200"},
 				Auth:   config.AuthConfig{Enabled: true},
 			},
 		},
@@ -149,7 +149,7 @@ func TestApplyEnv(t *testing.T) {
 			},
 			initial: config.Default(),
 			expected: &config.Config{
-				Server: config.ServerConfig{Addr: ":8080"},
+				Server: config.ServerConfig{Addr: ":4200"},
 				Auth:   config.AuthConfig{JWTSecret: "my-secret-key"},
 			},
 		},
@@ -181,11 +181,11 @@ func TestApplyEnv(t *testing.T) {
 				"SHELLFB_AUTH_ENABLED": "false",
 			},
 			initial: &config.Config{
-				Server: config.ServerConfig{Addr: ":8080"},
+				Server: config.ServerConfig{Addr: ":4200"},
 				Auth:   config.AuthConfig{Enabled: true},
 			},
 			expected: &config.Config{
-				Server: config.ServerConfig{Addr: ":8080"},
+				Server: config.ServerConfig{Addr: ":4200"},
 				Auth:   config.AuthConfig{Enabled: false},
 			},
 		},
@@ -264,7 +264,7 @@ func TestValidate(t *testing.T) {
 			name: "valid: neither domain nor TLS",
 			cfg: &config.Config{
 				Server: config.ServerConfig{
-					Addr: ":8080",
+					Addr: ":4200",
 				},
 			},
 			wantErr: false,

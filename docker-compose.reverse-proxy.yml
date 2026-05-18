@@ -9,14 +9,14 @@ services:
     image: valorisa/shellfb:latest
     container_name: shellfb
     environment:
-      - SHELLFB_ADDR=:8080
+      - SHELLFB_ADDR=:4200
       - SHELLFB_AUTH_ENABLED=true
       - SHELLFB_JWT_SECRET=change-me-to-a-random-string
     volumes:
       - ./config.yaml:/etc/shellfb/config.yaml:ro
       - shellfb-recordings:/home/shellfb/recordings
     expose:
-      - "8080"
+      - "4200"
     restart: unless-stopped
 
   caddy:

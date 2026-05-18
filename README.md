@@ -39,7 +39,7 @@ A modern, cross-platform terminal emulator written in Go. Spiritual successor to
 # Install from source
 go install github.com/valorisa/ShellFromBrowser/cmd/shellfb@latest
 
-# Run with defaults (no auth, port 8080)
+# Run with defaults (no auth, port 4200)
 shellfb
 
 # Run with custom address
@@ -52,7 +52,7 @@ shellfb --config config.yaml
 shellfb --version
 ```
 
-Then open http://localhost:8080 in your browser.
+Then open http://localhost:4200 in your browser.
 
 ### Option 2: Docker (deployment)
 
@@ -97,7 +97,7 @@ Copy `config.example.yaml` to `config.yaml` and customize:
 
 ```yaml
 server:
-  addr: ":8080"
+  addr: ":4200"
   tls:
     enabled: true
     cert: "/path/to/cert.pem"
@@ -145,7 +145,7 @@ Copy the output into your `config.yaml` under `password_hash`.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--addr` | `:8080` | Listen address (overrides config file) |
+| `--addr` | `:4200` | Listen address (overrides config file) |
 | `--config` | none | Path to YAML configuration file |
 | `--version` | — | Print version and exit |
 
@@ -162,7 +162,7 @@ Subcommands:
 Connect to remote hosts directly from the browser by opening a WebSocket connection to `/ws/ssh`:
 
 ```
-ws://localhost:8080/ws/ssh?target=user@host.com:22&password=secret&token=JWT_TOKEN
+ws://localhost:4200/ws/ssh?target=user@host.com:22&password=secret&token=JWT_TOKEN
 ```
 
 Parameters:

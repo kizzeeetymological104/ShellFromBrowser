@@ -81,7 +81,7 @@ type RecordingConfig struct {
 
 func Default() *Config {
 	return &Config{
-		Server: ServerConfig{Addr: ":8080"},
+		Server: ServerConfig{Addr: ":4200"},
 		Shell: ShellConfig{
 			Env: []string{"TERM=xterm-256color"},
 		},

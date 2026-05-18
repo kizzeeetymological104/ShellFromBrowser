@@ -39,7 +39,7 @@ Un émulateur de terminal web moderne et multiplateforme écrit en Go. Successeu
 # Installer depuis les sources
 go install github.com/valorisa/ShellFromBrowser/cmd/shellfb@latest
 
-# Lancer avec les paramètres par défaut (sans auth, port 8080)
+# Lancer avec les paramètres par défaut (sans auth, port 4200)
 shellfb
 
 # Lancer avec une adresse personnalisée
@@ -52,7 +52,7 @@ shellfb --config config.yaml
 shellfb --version
 ```
 
-Puis ouvrir http://localhost:8080 dans votre navigateur.
+Puis ouvrir http://localhost:4200 dans votre navigateur.
 
 ### Option 2 : Docker (déploiement)
 
@@ -113,7 +113,7 @@ Copier `config.example.yaml` vers `config.yaml` et personnaliser :
 
 ```yaml
 server:
-  addr: ":8080"
+  addr: ":4200"
   tls:
     enabled: true
     cert: "/chemin/vers/cert.pem"
@@ -161,7 +161,7 @@ Copier la sortie dans votre `config.yaml` sous `password_hash`.
 
 | Flag | Défaut | Description |
 |------|--------|-------------|
-| `--addr` | `:8080` | Adresse d'écoute (remplace le fichier de config) |
+| `--addr` | `:4200` | Adresse d'écoute (remplace le fichier de config) |
 | `--config` | aucun | Chemin vers le fichier de configuration YAML |
 | `--version` | — | Afficher la version et quitter |
 
@@ -178,7 +178,7 @@ Sous-commandes :
 Se connecter à des hôtes distants directement depuis le navigateur via une connexion WebSocket vers `/ws/ssh` :
 
 ```
-ws://localhost:8080/ws/ssh?target=user@host.com:22&password=secret&token=JWT_TOKEN
+ws://localhost:4200/ws/ssh?target=user@host.com:22&password=secret&token=JWT_TOKEN
 ```
 
 Paramètres :

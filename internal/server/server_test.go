@@ -57,7 +57,7 @@ func TestListenModeManualTLS(t *testing.T) {
 
 func TestListenModeHTTP(t *testing.T) {
 	cfg := config.Default()
-	srv := server.New(":8080", cfg)
+	srv := server.New(":4200", cfg)
 	mode := srv.ListenMode()
 	if mode != "http" {
 		t.Errorf("ListenMode() = %q, want http", mode)

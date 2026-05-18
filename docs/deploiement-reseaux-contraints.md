@@ -81,13 +81,13 @@ Si vous avez déjà Nginx, Caddy ou Traefik sur votre serveur :
 docker compose -f docker-compose.reverse-proxy.yml up -d
 ```
 
-ShellFromBrowser écoute en HTTP sur :8080, le reverse proxy gère le TLS.
+ShellFromBrowser écoute en HTTP sur :4200, le reverse proxy gère le TLS.
 
 ### Exemple Caddy
 
 ```text
 shell.monserveur.com {
-    reverse_proxy shellfb:8080
+    reverse_proxy shellfb:4200
 }
 ```
 
@@ -102,7 +102,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/shell.monserveur.com/privkey.pem;
 
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:4200;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
