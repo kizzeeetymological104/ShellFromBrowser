@@ -33,10 +33,32 @@ Un émulateur de terminal web moderne et multiplateforme écrit en Go. Successeu
 
 ## Démarrage rapide
 
-### Option 1 : Binaire
+### Prérequis
+
+- [Go 1.21+](https://go.dev/dl/) installé (requis pour les Options 1, 2 et 4)
+- [Docker](https://docs.docker.com/get-docker/) installé (requis pour l'Option 3 uniquement)
+
+### Option 1 : Test rapide (aucune installation)
+
+La manière la plus rapide d'essayer ShellFromBrowser. Fonctionne sur Windows, macOS et Linux — Go gère les différences cross-platform automatiquement.
 
 ```bash
-# Installer depuis les sources
+git clone https://github.com/valorisa/ShellFromBrowser.git
+cd ShellFromBrowser
+
+# Lancer directement sans installer (compile et exécute en une seule étape)
+go run ./cmd/shellfb
+```
+
+Puis ouvrir http://localhost:4200 dans votre navigateur. Vous devriez voir un terminal interactif (xterm.js).
+
+> Ceci n'installe **rien** sur votre système. Go compile un binaire temporaire et l'exécute. Arrêter avec `Ctrl+C`.
+
+### Option 2 : Installation globale
+
+Installe le binaire `shellfb` dans votre `$GOPATH/bin` (ou `%GOPATH%\bin` sous Windows), le rendant disponible partout sur le système.
+
+```bash
 go install github.com/valorisa/ShellFromBrowser/cmd/shellfb@latest
 
 # Lancer avec les paramètres par défaut (sans auth, port 4200)
@@ -52,9 +74,9 @@ shellfb --config config.yaml
 shellfb --version
 ```
 
-Puis ouvrir http://localhost:4200 dans votre navigateur.
+Puis ouvrir http://localhost:4200 (ou votre port personnalisé) dans votre navigateur.
 
-### Option 2 : Docker (déploiement)
+### Option 3 : Docker (déploiement)
 
 Le `docker-compose.yml` par défaut expose les ports 80/443 avec auto-TLS — conçu pour le déploiement en réseaux contraints (aéroports, gares, réseaux d'entreprise) où seul le trafic HTTPS standard passe les pare-feu.
 
@@ -71,15 +93,22 @@ docker compose up -d
 
 Ouvrir `https://votre-domaine.com` — le terminal est prêt.
 
-> **Test local ?** Utiliser l'Option 1 (binaire) avec `shellfb --addr :3000` — aucun TLS ni domaine requis.
+> **Test local avec Docker ?** On peut lancer sans TLS :
+> ```bash
+> docker build -t shellfb .
+> docker run --rm -p 4200:4200 shellfb
+> ```
+> Puis ouvrir http://localhost:4200.
 
-### Option 3 : Compiler depuis les sources
+### Option 4 : Compiler depuis les sources (Makefile)
+
+Compile le binaire dans `./bin/shellfb`. Utile pour le développement ou le packaging.
 
 ```bash
 git clone https://github.com/valorisa/ShellFromBrowser.git
 cd ShellFromBrowser
 
-# Compiler
+# Compiler le binaire
 make build
 
 # Lancer
@@ -88,6 +117,8 @@ make build
 # Exécuter les tests
 make test
 ```
+
+Puis ouvrir http://localhost:4200 dans votre navigateur.
 
 ---
 

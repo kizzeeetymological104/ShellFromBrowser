@@ -33,10 +33,32 @@ A modern, cross-platform terminal emulator written in Go. Spiritual successor to
 
 ## Quick Start
 
-### Option 1: Binary
+### Prerequisites
+
+- [Go 1.21+](https://go.dev/dl/) installed (required for Options 1, 2, and 4)
+- [Docker](https://docs.docker.com/get-docker/) installed (required for Option 3 only)
+
+### Option 1: Quick test (no install needed)
+
+The fastest way to try ShellFromBrowser. Works on Windows, macOS, and Linux — Go handles the cross-platform differences automatically.
 
 ```bash
-# Install from source
+git clone https://github.com/valorisa/ShellFromBrowser.git
+cd ShellFromBrowser
+
+# Launch directly without installing (compiles and runs in one step)
+go run ./cmd/shellfb
+```
+
+Then open http://localhost:4200 in your browser. You should see an interactive terminal (xterm.js).
+
+> This does **not** install anything on your system. It compiles a temporary binary and runs it. Stop it with `Ctrl+C`.
+
+### Option 2: Install globally
+
+Installs the `shellfb` binary into your `$GOPATH/bin` (or `%GOPATH%\bin` on Windows), making it available system-wide.
+
+```bash
 go install github.com/valorisa/ShellFromBrowser/cmd/shellfb@latest
 
 # Run with defaults (no auth, port 4200)
@@ -52,9 +74,9 @@ shellfb --config config.yaml
 shellfb --version
 ```
 
-Then open http://localhost:4200 in your browser.
+Then open http://localhost:4200 (or your custom port) in your browser.
 
-### Option 2: Docker (deployment)
+### Option 3: Docker (deployment)
 
 The default `docker-compose.yml` exposes ports 80/443 with auto-TLS — designed for deployment on restricted networks (airports, train stations, corporate firewalls) where only standard HTTPS traffic passes through.
 
@@ -71,23 +93,32 @@ docker compose up -d
 
 Open `https://your-domain.com` — the terminal is ready.
 
-> **Local testing?** Use Option 1 (binary) with `shellfb --addr :3000` instead — no TLS or domain required.
+> **Local testing with Docker?** You can run without TLS:
+> ```bash
+> docker build -t shellfb .
+> docker run --rm -p 4200:4200 shellfb
+> ```
+> Then open http://localhost:4200.
 
-### Option 3: Build from source
+### Option 4: Build from source (Makefile)
+
+Compiles the binary into `./bin/shellfb`. Useful for development or packaging.
 
 ```bash
 git clone https://github.com/valorisa/ShellFromBrowser.git
 cd ShellFromBrowser
 
-# Build
+# Build the binary
 make build
 
-# Run
+# Run it
 ./bin/shellfb
 
-# Run tests
+# Run the test suite
 make test
 ```
+
+Then open http://localhost:4200 in your browser.
 
 ---
 
